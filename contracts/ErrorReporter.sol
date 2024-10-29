@@ -125,3 +125,68 @@ contract TokenErrorReporter {
     error SetInterestRateModelOwnerCheck();
     error SetInterestRateModelFreshCheck();
 }
+
+
+
+contract VAIControllerErrorReporter {
+    enum Error {
+        NO_ERROR,
+        UNAUTHORIZED, // The sender is not authorized to perform this action.
+        REJECTION, // The action would violate the comptroller, vaicontroller policy.
+        SNAPSHOT_ERROR, // The comptroller could not get the account borrows and exchange rate from the market.
+        PRICE_ERROR, // The comptroller could not obtain a required price of an asset.
+        MATH_ERROR, // A math calculation error occurred.
+        INSUFFICIENT_BALANCE_FOR_VAI // Caller does not have sufficient balance to mint VAI.
+    }
+
+    enum FailureInfo {
+        SET_PENDING_ADMIN_OWNER_CHECK,
+        SET_PENDING_IMPLEMENTATION_OWNER_CHECK,
+        SET_COMPTROLLER_OWNER_CHECK,
+        ACCEPT_ADMIN_PENDING_ADMIN_CHECK,
+        ACCEPT_PENDING_IMPLEMENTATION_ADDRESS_CHECK,
+        VAI_MINT_REJECTION,
+        VAI_BURN_REJECTION,
+        VAI_LIQUIDATE_ACCRUE_BORROW_INTEREST_FAILED,
+        VAI_LIQUIDATE_ACCRUE_COLLATERAL_INTEREST_FAILED,
+        VAI_LIQUIDATE_COLLATERAL_FRESHNESS_CHECK,
+        VAI_LIQUIDATE_COMPTROLLER_REJECTION,
+        VAI_LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED,
+        VAI_LIQUIDATE_CLOSE_AMOUNT_IS_UINT_MAX,
+        VAI_LIQUIDATE_CLOSE_AMOUNT_IS_ZERO,
+        VAI_LIQUIDATE_FRESHNESS_CHECK,
+        VAI_LIQUIDATE_LIQUIDATOR_IS_BORROWER,
+        VAI_LIQUIDATE_REPAY_BORROW_FRESH_FAILED,
+        VAI_LIQUIDATE_SEIZE_BALANCE_INCREMENT_FAILED,
+        VAI_LIQUIDATE_SEIZE_BALANCE_DECREMENT_FAILED,
+        VAI_LIQUIDATE_SEIZE_COMPTROLLER_REJECTION,
+        VAI_LIQUIDATE_SEIZE_LIQUIDATOR_IS_BORROWER,
+        VAI_LIQUIDATE_SEIZE_TOO_MUCH,
+        MINT_FEE_CALCULATION_FAILED,
+        SET_TREASURY_OWNER_CHECK
+    }
+
+    /**
+     * @dev `error` corresponds to enum Error; `info` corresponds to enum FailureInfo, and `detail` is an arbitrary
+     * contract-specific code that enables us to report opaque error codes from upgradeable contracts.
+     **/
+    event Failure(uint error, uint info, uint detail);
+
+    /**
+     * @dev use this when reporting a known error from the money market or a non-upgradeable collaborator
+     */
+    function fail(Error err, FailureInfo info) internal returns (uint) {
+        emit Failure(uint(err), uint(info), 0);
+
+        return uint(err);
+    }
+
+    /**
+     * @dev use this when reporting an opaque error from an upgradeable collaborator contract
+     */
+    function failOpaque(Error err, FailureInfo info, uint opaqueError) internal returns (uint) {
+        emit Failure(uint(err), uint(info), opaqueError);
+
+        return uint(err);
+    }
+}
