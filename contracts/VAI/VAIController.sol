@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: BSD-3-Clause
 pragma solidity ^0.5.16;
 
-import { PriceOracle } from "../../Oracle/PriceOracle.sol";
-import { VAIControllerErrorReporter } from "../../Utils/ErrorReporter.sol";
-import { Exponential } from "../../Utils/Exponential.sol";
-import { ComptrollerInterface } from "../../Comptroller/ComptrollerInterface.sol";
-import { IAccessControlManagerV5 } from "@venusprotocol/governance-contracts/contracts/Governance/IAccessControlManagerV5.sol";
-import { VToken, EIP20Interface } from "../VTokens/VToken.sol";
+import { PriceOracle } from "../PriceOracle.sol";
+import { VAIControllerErrorReporter } from "../ErrorReporter.sol";
+import { Exponential } from "../Exponential.sol";
+import { ComptrollerInterface } from "../ComptrollerInterface.sol";
+// import { IAccessControlManagerV5 } from "@venusprotocol/governance-contracts/contracts/Governance/IAccessControlManagerV5.sol";
+import { CToken, EIP20Interface } from "../CToken.sol";
 import { VAIUnitroller, VAIControllerStorageG4 } from "./VAIUnitroller.sol";
 import { VAIControllerInterface } from "./VAIControllerInterface.sol";
 import { VAI } from "./VAI.sol";
-import { IPrime } from "../Prime/IPrime.sol";
-import { VTokenInterface } from "../VTokens/VTokenInterfaces.sol";
+// import { IPrime } from "../Prime/IPrime.sol";
+import { CTokenInterface } from "../CTokenInterfaces.sol";
 
 /**
  * @title VAI Comptroller
@@ -250,7 +250,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
     function liquidateVAI(
         address borrower,
         uint256 repayAmount,
-        VTokenInterface vTokenCollateral
+        CTokenInterface vTokenCollateral
     ) external nonReentrant returns (uint256, uint256) {
         _ensureNotPaused();
 
@@ -279,7 +279,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         address liquidator,
         address borrower,
         uint256 repayAmount,
-        VTokenInterface vTokenCollateral
+        CTokenInterface vTokenCollateral
     ) internal returns (uint256, uint256) {
         if (address(comptroller) != address(0)) {
             accrueVAIInterest();
@@ -406,7 +406,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @return uint256 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
     function toggleOnlyPrimeHolderMint() external returns (uint256) {
-        _ensureAllowed("toggleOnlyPrimeHolderMint()");
+        // _ensureAllowed("toggleOnlyPrimeHolderMint()");
 
         if (!mintEnabledOnlyForPrimeHolder && prime == address(0)) {
             return uint256(Error.REJECTION);
@@ -777,8 +777,8 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @notice Set VAI borrow base rate
      * @param newBaseRateMantissa the base rate multiplied by 10**18
      */
-    function setBaseRate(uint256 newBaseRateMantissa) external {
-        _ensureAllowed("setBaseRate(uint256)");
+    function setBaseRate(uint256 newBaseRateMantissa) external onlyAdmin{
+        // _ensureAllowed("setBaseRate(uint256)");
 
         uint256 old = baseRateMantissa;
         baseRateMantissa = newBaseRateMantissa;
@@ -789,8 +789,8 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @notice Set VAI borrow float rate
      * @param newFloatRateMantissa the VAI float rate multiplied by 10**18
      */
-    function setFloatRate(uint256 newFloatRateMantissa) external {
-        _ensureAllowed("setFloatRate(uint256)");
+    function setFloatRate(uint256 newFloatRateMantissa) external onlyAdmin {
+        // _ensureAllowed("setFloatRate(uint256)");
 
         uint256 old = floatRateMantissa;
         floatRateMantissa = newFloatRateMantissa;
@@ -813,8 +813,8 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @notice Set VAI mint cap
      * @param _mintCap the amount of VAI that can be minted
      */
-    function setMintCap(uint256 _mintCap) external {
-        _ensureAllowed("setMintCap(uint256)");
+    function setMintCap(uint256 _mintCap) external onlyAdmin{
+        // _ensureAllowed("setMintCap(uint256)");
 
         uint256 old = mintCap;
         mintCap = _mintCap;
@@ -854,9 +854,9 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         _notEntered = true; // get a gas-refund post-Istanbul
     }
 
-    function _ensureAllowed(string memory functionSig) private view {
-        require(IAccessControlManagerV5(accessControl).isAllowedToCall(msg.sender, functionSig), "access denied");
-    }
+    // function _ensureAllowed(string memory functionSig) private view {
+    //     require(IAccessControlManagerV5(accessControl).isAllowedToCall(msg.sender, functionSig), "access denied");
+    // }
 
     /// @dev Reverts if the protocol is paused
     function _ensureNotPaused() private view {
