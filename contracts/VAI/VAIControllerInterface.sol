@@ -1,6 +1,6 @@
 pragma solidity ^0.5.16;
 
-import { VTokenInterface } from "../VTokens/VTokenInterfaces.sol";
+import { CTokenInterface } from "../CTokenInterfaces.sol";
 
 contract VAIControllerInterface {
     function mintVAI(uint256 mintVAIAmount) external returns (uint256);
@@ -12,7 +12,7 @@ contract VAIControllerInterface {
     function liquidateVAI(
         address borrower,
         uint256 repayAmount,
-        VTokenInterface vTokenCollateral
+        CTokenInterface vTokenCollateral
     ) external returns (uint256, uint256);
 
     function getMintableVAI(address minter) external view returns (uint256, uint256);
