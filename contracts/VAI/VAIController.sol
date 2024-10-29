@@ -106,7 +106,6 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         }
 
         _ensureNonzeroAmount(mintVAIAmount);
-        _ensureNotPaused();
         accrueVAIInterest();
 
         uint256 err;
@@ -135,7 +134,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         }
 
         uint256 accountMintVAINew = add_(totalMintedVAI, mintVAIAmount);
-        err = comptroller.setMintedVAIOf(minter, accountMintVAINew);
+        err = comptroller.setMintedVAIOf(minter, accountMintVAINew);  //set account 
         require(err == uint256(Error.NO_ERROR), "comptroller rejection");
 
         uint256 remainedAmount;
@@ -198,7 +197,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
             return (0, 0);
         }
         _ensureNonzeroAmount(amount);
-        _ensureNotPaused();
+
 
         accrueVAIInterest();
         return repayVAIFresh(msg.sender, borrower, amount);
@@ -252,7 +251,6 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         uint256 repayAmount,
         CTokenInterface vTokenCollateral
     ) external nonReentrant returns (uint256, uint256) {
-        _ensureNotPaused();
 
         uint256 error = vTokenCollateral.accrueInterest();
         if (error != uint256(Error.NO_ERROR)) {
@@ -788,7 +786,6 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @param newFloatRateMantissa the VAI float rate multiplied by 10**18
      */
     function setFloatRate(uint256 newFloatRateMantissa) external onlyAdmin {
-        // _ensureAllowed("setFloatRate(uint256)");
 
         uint256 old = floatRateMantissa;
         floatRateMantissa = newFloatRateMantissa;
@@ -851,11 +848,6 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         _notEntered = true; // get a gas-refund post-Istanbul
     }
 
-
-    /// @dev Reverts if the protocol is paused
-    function _ensureNotPaused() private view {
-        require(!comptroller.protocolPaused(), "protocol is paused");
-    }
 
     /// @dev Reverts if the passed address is zero
     function _ensureNonzeroAddress(address someone) private pure {
