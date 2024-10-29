@@ -405,8 +405,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @notice Toggle mint only for prime holder
      * @return uint256 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
-    function toggleOnlyPrimeHolderMint() external returns (uint256) {
-        // _ensureAllowed("toggleOnlyPrimeHolderMint()");
+    function toggleOnlyPrimeHolderMint() external returns (uint256) onlyAdmin{
 
         if (!mintEnabledOnlyForPrimeHolder && prime == address(0)) {
             return uint256(Error.REJECTION);
@@ -778,7 +777,6 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @param newBaseRateMantissa the base rate multiplied by 10**18
      */
     function setBaseRate(uint256 newBaseRateMantissa) external onlyAdmin{
-        // _ensureAllowed("setBaseRate(uint256)");
 
         uint256 old = baseRateMantissa;
         baseRateMantissa = newBaseRateMantissa;
@@ -814,7 +812,6 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @param _mintCap the amount of VAI that can be minted
      */
     function setMintCap(uint256 _mintCap) external onlyAdmin{
-        // _ensureAllowed("setMintCap(uint256)");
 
         uint256 old = mintCap;
         mintCap = _mintCap;
@@ -854,9 +851,6 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         _notEntered = true; // get a gas-refund post-Istanbul
     }
 
-    // function _ensureAllowed(string memory functionSig) private view {
-    //     require(IAccessControlManagerV5(accessControl).isAllowedToCall(msg.sender, functionSig), "access denied");
-    // }
 
     /// @dev Reverts if the protocol is paused
     function _ensureNotPaused() private view {
