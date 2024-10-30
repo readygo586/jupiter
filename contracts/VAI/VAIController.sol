@@ -5,12 +5,11 @@ import { PriceOracle } from "../PriceOracle.sol";
 import { VAIControllerErrorReporter } from "../ErrorReporter.sol";
 import { Exponential } from "../Exponential.sol";
 import { ComptrollerInterface } from "../ComptrollerInterface.sol";
-// import { IAccessControlManagerV5 } from "@venusprotocol/governance-contracts/contracts/Governance/IAccessControlManagerV5.sol";
+import {ComptrollerLensInterface} from "../Lens/CompoundLens.sol";
 import { CToken, EIP20Interface } from "../CToken.sol";
 import { VAIUnitroller, VAIControllerStorageG4 } from "./VAIUnitroller.sol";
 import { VAIControllerInterface } from "./VAIControllerInterface.sol";
 import { VAI } from "./VAI.sol";
-// import { IPrime } from "../Prime/IPrime.sol";
 import { CTokenInterface } from "../CTokenInterfaces.sol";
 
 /**
@@ -128,9 +127,9 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
 
         if (totalMintedVAI > 0) {
             uint256 repayAmount = getVAIRepayAmount(minter);
-            uint256 remainedAmount = sub_(repayAmount, totalMintedVAI);
-            pastVAIInterest[minter] = add_(pastVAIInterest[minter], remainedAmount);
-            totalMintedVAI = repayAmount;
+            uint256 remainedAmount = sub_(repayAmount, totalMintedVAI); 
+            pastVAIInterest[minter] = add_(pastVAIInterest[minter], remainedAmount);  //only accumulated interest
+            totalMintedVAI = repayAmount; // update user's totalMintedVAI  
         }
 
         uint256 accountMintVAINew = add_(totalMintedVAI, mintVAIAmount);
@@ -197,9 +196,8 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
             return (0, 0);
         }
         _ensureNonzeroAmount(amount);
-
-
         accrueVAIInterest();
+
         return repayVAIFresh(msg.sender, borrower, amount);
     }
 
@@ -361,6 +359,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         }
     }
 
+
     /*** Admin Functions ***/
 
     /**
@@ -403,7 +402,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @notice Toggle mint only for prime holder
      * @return uint256 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
-    function toggleOnlyPrimeHolderMint() external returns (uint256) onlyAdmin{
+    function toggleOnlyPrimeHolderMint() external onlyAdmin returns  (uint256) {
 
         if (!mintEnabledOnlyForPrimeHolder && prime == address(0)) {
             return uint256(Error.REJECTION);
@@ -448,8 +447,9 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
             return (uint256(Error.REJECTION), 0);
         }
 
-        PriceOracle oracle = comptroller.oracle();
-        VToken[] memory enteredMarkets = comptroller.getAssetsIn(minter);
+        ComptrollerLensInterface comptrollerLen = ComptrollerLensInterface(address(comptroller));
+        PriceOracle oracle = comptrollerLen.oracle();
+        VToken[] memory enteredMarkets = comptrollerLen.getAssetsIn(minter);
 
         AccountAmountLocalVars memory vars; // Holds all our calculation results
 
@@ -579,7 +579,9 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
      * @return uint256 Yearly VAI interest rate
      */
     function getVAIRepayRate() public view returns (uint256) {
-        PriceOracle oracle = comptroller.oracle();
+        
+        ComptrollerLensInterface comptrollerLen = ComptrollerLensInterface(address(comptroller));
+        PriceOracle oracle = comptrollerLen.oracle();
         MathError mErr;
 
         if (baseRateMantissa > 0) {
@@ -658,10 +660,10 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         uint256 totalMintedVAI;
         uint256 newInterest;
 
-        (mErr, totalMintedVAI) = subUInt(amount, interest);
+        (mErr, totalMintedVAI) = subUInt(amount, interest); 
         require(mErr == MathError.NO_ERROR, "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED");
 
-        (mErr, delta) = subUInt(vaiMintIndex, getVAIMinterInterestIndex(account));
+        (mErr, delta) = subUInt(vaiMintIndex, getVAIMinterInterestIndex(account));  //vaiMintIndex init vaule = INITIAL_VAI_MINT_INDEX
         require(mErr == MathError.NO_ERROR, "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED");
 
         (mErr, newInterest) = mulUInt(delta, totalMintedVAI);
@@ -753,7 +755,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         (mErr, delta) = addUInt(delta, vaiMintIndex);
         require(mErr == MathError.NO_ERROR, "VAI_INTEREST_ACCRUE_FAILED");
 
-        vaiMintIndex = delta;
+        vaiMintIndex = delta;  //update vaiMintIndex to accumulate interest
         accrualBlockNumber = getBlockNumber();
     }
 
@@ -814,6 +816,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         mintCap = _mintCap;
         emit NewVAIMintCap(old, _mintCap);
     }
+
 
     function getBlockNumber() internal view returns (uint256) {
         return block.number;

@@ -1,6 +1,6 @@
 pragma solidity ^0.5.16;
 
-import { ComptrollerInterface } from "../../Comptroller/ComptrollerInterface.sol";
+import { ComptrollerInterface } from "../ComptrollerInterface.sol";
 
 contract VAIUnitrollerAdminStorage {
     /**
@@ -51,7 +51,7 @@ contract VAIControllerStorageG2 is VAIControllerStorageG1 {
     /// @notice Treasury address
     address public treasuryAddress;
 
-    /// @notice Fee percent of accrued interest with decimal 18
+    /// @notice Fee percent of accrued interest with decimal 18, take fee when mining VAI
     uint256 public treasuryPercent;
 
     /// @notice Guard variable for re-entrancy checks

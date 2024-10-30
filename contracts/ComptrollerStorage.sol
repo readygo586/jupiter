@@ -3,6 +3,7 @@ pragma solidity ^0.8.10;
 
 import "./CToken.sol";
 import "./PriceOracle.sol";
+import {VAIControllerInterface} from "./VAI/VAIControllerInterface.sol";
 
 contract UnitrollerAdminStorage {
     /**
@@ -157,4 +158,14 @@ contract ComptrollerV7Storage is ComptrollerV6Storage {
 
     /// @notice Accounting storage mapping account addresses to how much COMP they owe the protocol.
     mapping(address => uint) public compReceivable;
+}
+
+
+contract ComptrollerV8Storage is ComptrollerV7Storage {
+
+    /// @notice The Address of VAIController
+    VAIControllerInterface public vaiController;
+
+    /// @notice The minted VAI amount to each user
+    mapping(address => uint256) public mintedVAIs;
 }

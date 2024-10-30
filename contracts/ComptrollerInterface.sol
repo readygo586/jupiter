@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 pragma solidity ^0.8.10;
 
+import {PriceOracle} from "./PriceOracle.sol";
+import {CToken} from "./CToken.sol";
+import {VAIControllerInterface} from "./VAI/VAIControllerInterface.sol";
+
+
 abstract contract ComptrollerInterface {
     /// @notice Indicator that this is a Comptroller contract (for inspection)
     bool public constant isComptroller = true;
@@ -25,7 +30,9 @@ abstract contract ComptrollerInterface {
         address cToken,
         address payer,
         address borrower,
-        uint repayAmount) virtual external returns (uint);
+        uint repayAmount
+    ) external returns (uint);
+
     function repayBorrowVerify(
         address cToken,
         address payer,
@@ -68,5 +75,19 @@ abstract contract ComptrollerInterface {
     function liquidateCalculateSeizeTokens(
         address cTokenBorrowed,
         address cTokenCollateral,
-        uint repayAmount) virtual external view returns (uint, uint);
+	uint repayAmount
+	) virtual external view returns (uint, uint);
+	
+	function setMintedVAIOf(address owner, uint amount) external returns (uint);
+    function liquidateVAICalculateSeizeTokens(
+        address vTokenCollateral,
+        uint repayAmount
+    ) external view returns (uint, uint);
+
+    function oracle() external view returns (PriceOracle);
+    function getAccountLiquidity(address) external view returns (uint, uint, uint);
+    function getAssetsIn(address) external view returns (CToken[] memory);
+    function vaiController() external view returns (VAIControllerInterface);
+    function mintedVAIs(address user) external view returns (uint);
+	
 }
