@@ -30,8 +30,7 @@ abstract contract ComptrollerInterface {
         address cToken,
         address payer,
         address borrower,
-        uint repayAmount
-    ) external returns (uint);
+        uint repayAmount ) external returns (uint);
 
     function repayBorrowVerify(
         address cToken,
@@ -75,8 +74,7 @@ abstract contract ComptrollerInterface {
     function liquidateCalculateSeizeTokens(
         address cTokenBorrowed,
         address cTokenCollateral,
-	uint repayAmount
-	) virtual external view returns (uint, uint);
+	    uint repayAmount) virtual external view returns (uint, uint);
 
     /********* VAI related*************/
 	function setMintedVAIOf(address owner, uint amount) external returns (uint);
