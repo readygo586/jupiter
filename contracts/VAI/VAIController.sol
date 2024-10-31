@@ -123,7 +123,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
         require(mintVAIAmount <= accountMintableVAI, "minting more than allowed");
 
         // Calculate the minted balance based on interest index
-        uint256 totalMintedVAI = comptroller.mintedVAIs(minter);
+        uint256 totalMintedVAI = comptroller.mintedVAIs(minter);  //
 
         if (totalMintedVAI > 0) {
             uint256 repayAmount = getVAIRepayAmount(minter);
@@ -282,7 +282,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
 
             /* Fail if liquidate not allowed */
             uint256 allowed = comptroller.liquidateBorrowAllowed(
-                address(this),
+                address(this),  //这里使用的是VAIController的地址，不是VAIToken
                 address(vTokenCollateral),
                 liquidator,
                 borrower,
@@ -527,7 +527,7 @@ contract VAIController is VAIControllerInterface, VAIControllerStorageG4, VAICon
             return (uint256(Error.MATH_ERROR), 0);
         }
 
-        (vars.mErr, accountMintableVAI) = mulUInt(vars.sumSupply, comptroller.vaiMintRate());
+        (vars.mErr, accountMintableVAI) = mulUInt(vars.sumSupply, comptroller.vaiMintRate()); //TODO(keep),vaiMintRate 应该设置为10000.
         require(vars.mErr == MathError.NO_ERROR, "VAI_MINT_AMOUNT_CALCULATION_FAILED");
 
         (vars.mErr, accountMintableVAI) = divUInt(accountMintableVAI, 10000);

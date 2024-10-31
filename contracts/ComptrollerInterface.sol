@@ -77,16 +77,14 @@ abstract contract ComptrollerInterface {
         address cTokenCollateral,
 	uint repayAmount
 	) virtual external view returns (uint, uint);
-	
+
+    /********* VAI related*************/
 	function setMintedVAIOf(address owner, uint amount) external returns (uint);
     function liquidateVAICalculateSeizeTokens(
         address vTokenCollateral,
         uint repayAmount
     ) external view returns (uint, uint);
 
-    function oracle() external view returns (PriceOracle);
-    function getAccountLiquidity(address) external view returns (uint, uint, uint);
-    function getAssetsIn(address) external view returns (CToken[] memory);
     function vaiController() external view returns (VAIControllerInterface);
     function mintedVAIs(address user) external view returns (uint);
 	

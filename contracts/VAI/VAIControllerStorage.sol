@@ -34,39 +34,40 @@ contract VAIControllerStorageG1 is VAIUnitrollerAdminStorage {
         uint32 block;
     }
 
-    /// @notice The Venus VAI state
+    /// @notice The Venus VAI state，没有看到如何使用，感觉可以不用
     VenusVAIState public venusVAIState;
 
-    /// @notice The Venus VAI state initialized
+    /// @notice The Venus VAI state initialized，没有看到如何使用，感觉可以不用
     bool public isVenusVAIInitialized;
 
-    /// @notice The Venus VAI minter index as of the last time they accrued XVS
+    /// @notice The Venus VAI minter index as of the last time they accrued XVS 没有看到如何使用，感觉可以不用
     mapping(address => uint256) public venusVAIMinterIndex;
 }
 
 contract VAIControllerStorageG2 is VAIControllerStorageG1 {
-    /// @notice Treasury Guardian address
+    /// @notice Treasury Guardian address，铸造VAI 没有铸币税，可以不用
     address public treasuryGuardian;
 
-    /// @notice Treasury address
+    /// @notice Treasury address，铸造VAI 没有铸币税，可以不用
     address public treasuryAddress;
 
-    /// @notice Fee percent of accrued interest with decimal 18, take fee when mining VAI
+    /// @notice Fee percent of accrued interest with decimal 18, take fee when mining VAI， 铸造VAI 没有铸币税，可以不用
     uint256 public treasuryPercent;
 
     /// @notice Guard variable for re-entrancy checks
     bool internal _notEntered;
 
-    /// @notice The base rate for stability fee
+    /// @notice The base rate for stability fee， 没有稳定费，可以不用
     uint256 public baseRateMantissa;
 
-    /// @notice The float rate for stability fee
+    /// @notice The float rate for stability fee，没有稳定费，可以不用
     uint256 public floatRateMantissa;
 
-    /// @notice The address for VAI interest receiver
+    /// @notice The address for VAI interest receiver，没有稳定费，可以不用
     address public receiver;
 
-    /// @notice Accumulator of the total earned interest rate since the opening of the market. For example: 0.6 (60%)
+    /// @notice Accumulator of the total earned interest rate since the opening of the market. For example: 0.6 (60%)。
+    //TODO(keep), 累计VAI 利息时用到的，
     uint256 public vaiMintIndex;
 
     /// @notice Block number that interest was last accrued at
@@ -78,10 +79,10 @@ contract VAIControllerStorageG2 is VAIControllerStorageG1 {
     /// @notice Tracks the amount of mintedVAI of a user that represents the accrued interest
     mapping(address => uint256) public pastVAIInterest;
 
-    /// @notice VAI mint cap
+    /// @notice VAI mint cap， mint上限
     uint256 public mintCap;
 
-    /// @notice Access control manager address
+    /// @notice Access control manager address， 可以不用
     address public accessControl;
 }
 

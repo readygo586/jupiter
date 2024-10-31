@@ -571,7 +571,7 @@ contract Comptroller is ComptrollerV8Storage, ComptrollerInterface, ComptrollerE
             return uint(Error.MARKET_NOT_LISTED);
         }
 
-        if (address(cTokenBorrowed) != addres(vaiController)){
+        if (address(cTokenBorrowed) != address(vaiController)){
             if (!markets[cTokenBorrowed].isListed) {
                 return uint(Error.MARKET_NOT_LISTED);
             }

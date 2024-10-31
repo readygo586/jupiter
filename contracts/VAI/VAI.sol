@@ -93,7 +93,7 @@ contract VAI is LibNote {
         emit Transfer(src, dst, wad);
         return true;
     }
-
+    //only VAIController can mint VAI
     function mint(address usr, uint256 wad) external auth {
         balanceOf[usr] = add(balanceOf[usr], wad);
         totalSupply = add(totalSupply, wad);
