@@ -30,7 +30,7 @@ abstract contract ComptrollerInterface {
         address cToken,
         address payer,
         address borrower,
-        uint repayAmount ) virtual external returns (uint);
+        uint repayAmount) virtual external returns (uint);
 
     function repayBorrowVerify(
         address cToken,
