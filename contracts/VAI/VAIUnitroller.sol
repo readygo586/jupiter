@@ -1,32 +1,28 @@
 pragma solidity ^0.5.16;
 
-import "../../Utils/ErrorReporter.sol";
+import "../ErrorReporter.sol";
 import "./VAIControllerStorage.sol";
 
-/**
- * @title VAI Unitroller
- * @author Venus
- * @notice This is the proxy contract for the VAIComptroller
- */
 contract VAIUnitroller is VAIUnitrollerAdminStorage, VAIControllerErrorReporter {
+
     /**
-     * @notice Emitted when pendingVAIControllerImplementation is changed
-     */
+      * @notice Emitted when pendingVAIControllerImplementation is changed
+      */
     event NewPendingImplementation(address oldPendingImplementation, address newPendingImplementation);
 
     /**
-     * @notice Emitted when pendingVAIControllerImplementation is accepted, which means comptroller implementation is updated
-     */
+      * @notice Emitted when pendingVAIControllerImplementation is accepted, which means comptroller implementation is updated
+      */
     event NewImplementation(address oldImplementation, address newImplementation);
 
     /**
-     * @notice Emitted when pendingAdmin is changed
-     */
+      * @notice Emitted when pendingAdmin is changed
+      */
     event NewPendingAdmin(address oldPendingAdmin, address newPendingAdmin);
 
     /**
-     * @notice Emitted when pendingAdmin is accepted, which means admin is updated
-     */
+      * @notice Emitted when pendingAdmin is accepted, which means admin is updated
+      */
     event NewAdmin(address oldAdmin, address newAdmin);
 
     constructor() public {
@@ -35,7 +31,8 @@ contract VAIUnitroller is VAIUnitrollerAdminStorage, VAIControllerErrorReporter 
     }
 
     /*** Admin Functions ***/
-    function _setPendingImplementation(address newPendingImplementation) public returns (uint256) {
+    function _setPendingImplementation(address newPendingImplementation) public returns (uint) {
+
         if (msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_IMPLEMENTATION_OWNER_CHECK);
         }
@@ -46,15 +43,15 @@ contract VAIUnitroller is VAIUnitrollerAdminStorage, VAIControllerErrorReporter 
 
         emit NewPendingImplementation(oldPendingImplementation, pendingVAIControllerImplementation);
 
-        return uint256(Error.NO_ERROR);
+        return uint(Error.NO_ERROR);
     }
 
     /**
-     * @notice Accepts new implementation of comptroller. msg.sender must be pendingImplementation
-     * @dev Admin function for new implementation to accept it's role as implementation
-     * @return uint256 0=success, otherwise a failure (see ErrorReporter.sol for details)
-     */
-    function _acceptImplementation() public returns (uint256) {
+    * @notice Accepts new implementation of comptroller. msg.sender must be pendingImplementation
+    * @dev Admin function for new implementation to accept it's role as implementation
+    * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+    */
+    function _acceptImplementation() public returns (uint) {
         // Check caller is pendingImplementation
         if (msg.sender != pendingVAIControllerImplementation) {
             return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_PENDING_IMPLEMENTATION_ADDRESS_CHECK);
@@ -71,16 +68,17 @@ contract VAIUnitroller is VAIUnitrollerAdminStorage, VAIControllerErrorReporter 
         emit NewImplementation(oldImplementation, vaiControllerImplementation);
         emit NewPendingImplementation(oldPendingImplementation, pendingVAIControllerImplementation);
 
-        return uint256(Error.NO_ERROR);
+        return uint(Error.NO_ERROR);
     }
 
+
     /**
-     * @notice Begins transfer of admin rights. The newPendingAdmin must call `_acceptAdmin` to finalize the transfer.
-     * @dev Admin function to begin change of admin. The newPendingAdmin must call `_acceptAdmin` to finalize the transfer.
-     * @param newPendingAdmin New pending admin.
-     * @return uint256 0=success, otherwise a failure (see ErrorReporter.sol for details)
-     */
-    function _setPendingAdmin(address newPendingAdmin) public returns (uint256) {
+      * @notice Begins transfer of admin rights. The newPendingAdmin must call `_acceptAdmin` to finalize the transfer.
+      * @dev Admin function to begin change of admin. The newPendingAdmin must call `_acceptAdmin` to finalize the transfer.
+      * @param newPendingAdmin New pending admin.
+      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+      */
+    function _setPendingAdmin(address newPendingAdmin) public returns (uint) {
         // Check caller = admin
         if (msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_ADMIN_OWNER_CHECK);
@@ -95,15 +93,15 @@ contract VAIUnitroller is VAIUnitrollerAdminStorage, VAIControllerErrorReporter 
         // Emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin)
         emit NewPendingAdmin(oldPendingAdmin, newPendingAdmin);
 
-        return uint256(Error.NO_ERROR);
+        return uint(Error.NO_ERROR);
     }
 
     /**
-     * @notice Accepts transfer of admin rights. msg.sender must be pendingAdmin
-     * @dev Admin function for pending admin to accept role and update admin
-     * @return uint256 0=success, otherwise a failure (see ErrorReporter.sol for details)
-     */
-    function _acceptAdmin() public returns (uint256) {
+      * @notice Accepts transfer of admin rights. msg.sender must be pendingAdmin
+      * @dev Admin function for pending admin to accept role and update admin
+      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+      */
+    function _acceptAdmin() public returns (uint) {
         // Check caller is pendingAdmin
         if (msg.sender != pendingAdmin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_ADMIN_PENDING_ADMIN_CHECK);
@@ -122,7 +120,7 @@ contract VAIUnitroller is VAIUnitrollerAdminStorage, VAIControllerErrorReporter 
         emit NewAdmin(oldAdmin, admin);
         emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
 
-        return uint256(Error.NO_ERROR);
+        return uint(Error.NO_ERROR);
     }
 
     /**
@@ -130,21 +128,17 @@ contract VAIUnitroller is VAIUnitrollerAdminStorage, VAIControllerErrorReporter 
      * It returns to the external caller whatever the implementation returns
      * or forwards reverts.
      */
-    function() external payable {
+    function () external payable {
         // delegate all other functions to current implementation
         (bool success, ) = vaiControllerImplementation.delegatecall(msg.data);
 
         assembly {
-            let free_mem_ptr := mload(0x40)
-            returndatacopy(free_mem_ptr, 0, returndatasize)
+              let free_mem_ptr := mload(0x40)
+              returndatacopy(free_mem_ptr, 0, returndatasize)
 
-            switch success
-            case 0 {
-                revert(free_mem_ptr, returndatasize)
-            }
-            default {
-                return(free_mem_ptr, returndatasize)
-            }
+              switch success
+              case 0 { revert(free_mem_ptr, returndatasize) }
+              default { return(free_mem_ptr, returndatasize) }
         }
     }
 }

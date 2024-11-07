@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity ^0.5.16;
 
-import "./CToken.sol";
+import "./VTokens/VToken.sol";
 import "./PriceOracle.sol";
-import {VAIControllerInterface} from "./VAI/VAIControllerInterface.sol";
+import "./VAI/VAIControllerInterface.sol";
+import "./ComptrollerLensInterface.sol";
 
 contract UnitrollerAdminStorage {
     /**
@@ -52,120 +52,177 @@ contract ComptrollerV1Storage is UnitrollerAdminStorage {
     /**
      * @notice Per-account mapping of "assets you are in", capped by maxAssets
      */
-    mapping(address => CToken[]) public accountAssets;
+    mapping(address => VToken[]) public accountAssets;
 
-}
-
-contract ComptrollerV2Storage is ComptrollerV1Storage {
     struct Market {
-        // Whether or not this market is listed
+        /// @notice Whether or not this market is listed
         bool isListed;
 
-        //  Multiplier representing the most one can borrow against their collateral in this market.
-        //  For instance, 0.9 to allow borrowing 90% of collateral value.
-        //  Must be between 0 and 1, and stored as a mantissa.
+        /**
+         * @notice Multiplier representing the most one can borrow against their collateral in this market.
+         *  For instance, 0.9 to allow borrowing 90% of collateral value.
+         *  Must be between 0 and 1, and stored as a mantissa.
+         */
         uint collateralFactorMantissa;
 
-        // Per-market mapping of "accounts in this asset"
+        /// @notice Per-market mapping of "accounts in this asset"
         mapping(address => bool) accountMembership;
 
-        // Whether or not this market receives COMP
-        bool isComped;
+        /// @notice Whether or not this market receives XVS
+        bool isVenus;
     }
 
     /**
-     * @notice Official mapping of cTokens -> Market metadata
+     * @notice Official mapping of vTokens -> Market metadata
      * @dev Used e.g. to determine if a market is supported
      */
     mapping(address => Market) public markets;
 
-
     /**
      * @notice The Pause Guardian can pause certain actions as a safety mechanism.
-     *  Actions which allow users to remove their own assets cannot be paused.
-     *  Liquidation / seizing / transfer can only be paused globally, not by market.
      */
     address public pauseGuardian;
-    bool public _mintGuardianPaused;
-    bool public _borrowGuardianPaused;
-    bool public transferGuardianPaused;
-    bool public seizeGuardianPaused;
-    mapping(address => bool) public mintGuardianPaused;
-    mapping(address => bool) public borrowGuardianPaused;
-}
 
-contract ComptrollerV3Storage is ComptrollerV2Storage {
-    struct CompMarketState {
-        // The market's last updated compBorrowIndex or compSupplyIndex
+    /// @notice Whether minting is paused (deprecated, superseded by actionPaused)
+    bool private _mintGuardianPaused;
+    /// @notice Whether borrowing is paused (deprecated, superseded by actionPaused)
+    bool private _borrowGuardianPaused;
+    /// @notice Whether borrowing is paused (deprecated, superseded by actionPaused)
+    bool internal transferGuardianPaused;
+    /// @notice Whether borrowing is paused (deprecated, superseded by actionPaused)
+    bool internal seizeGuardianPaused;
+    /// @notice Whether borrowing is paused (deprecated, superseded by actionPaused)
+    mapping(address => bool) internal mintGuardianPaused;
+    /// @notice Whether borrowing is paused (deprecated, superseded by actionPaused)
+    mapping(address => bool) internal borrowGuardianPaused;
+
+    struct VenusMarketState {
+        /// @notice The market's last updated venusBorrowIndex or venusSupplyIndex
         uint224 index;
 
-        // The block number the index was last updated at
+        /// @notice The block number the index was last updated at
         uint32 block;
     }
 
     /// @notice A list of all markets
-    CToken[] public allMarkets;
+    VToken[] public allMarkets;
 
-    /// @notice The rate at which the flywheel distributes COMP, per block
-    uint public compRate;
+    /// @notice The rate at which the flywheel distributes XVS, per block
+    uint public venusRate;
 
-    /// @notice The portion of compRate that each market currently receives
-    mapping(address => uint) public compSpeeds;
+    /// @notice The portion of venusRate that each market currently receives
+    mapping(address => uint) public venusSpeeds;
 
-    /// @notice The COMP market supply state for each market
-    mapping(address => CompMarketState) public compSupplyState;
+    /// @notice The Venus market supply state for each market
+    mapping(address => VenusMarketState) public venusSupplyState;
 
-    /// @notice The COMP market borrow state for each market
-    mapping(address => CompMarketState) public compBorrowState;
+    /// @notice The Venus market borrow state for each market
+    mapping(address => VenusMarketState) public venusBorrowState;
 
-    /// @notice The COMP borrow index for each market for each supplier as of the last time they accrued COMP
-    mapping(address => mapping(address => uint)) public compSupplierIndex;
+    /// @notice The Venus supply index for each market for each supplier as of the last time they accrued XVS
+    mapping(address => mapping(address => uint)) public venusSupplierIndex;
 
-    /// @notice The COMP borrow index for each market for each borrower as of the last time they accrued COMP
-    mapping(address => mapping(address => uint)) public compBorrowerIndex;
+    /// @notice The Venus borrow index for each market for each borrower as of the last time they accrued XVS
+    mapping(address => mapping(address => uint)) public venusBorrowerIndex;
 
-    /// @notice The COMP accrued but not yet transferred to each user
-    mapping(address => uint) public compAccrued;
-}
-
-contract ComptrollerV4Storage is ComptrollerV3Storage {
-    // @notice The borrowCapGuardian can set borrowCaps to any number for any market. Lowering the borrow cap could disable borrowing on the given market.
-    address public borrowCapGuardian;
-
-    // @notice Borrow caps enforced by borrowAllowed for each cToken address. Defaults to zero which corresponds to unlimited borrowing.
-    mapping(address => uint) public borrowCaps;
-}
-
-contract ComptrollerV5Storage is ComptrollerV4Storage {
-    /// @notice The portion of COMP that each contributor receives per block
-    mapping(address => uint) public compContributorSpeeds;
-
-    /// @notice Last block at which a contributor's COMP rewards have been allocated
-    mapping(address => uint) public lastContributorBlock;
-}
-
-contract ComptrollerV6Storage is ComptrollerV5Storage {
-    /// @notice The rate at which comp is distributed to the corresponding borrow market (per block)
-    mapping(address => uint) public compBorrowSpeeds;
-
-    /// @notice The rate at which comp is distributed to the corresponding supply market (per block)
-    mapping(address => uint) public compSupplySpeeds;
-}
-
-contract ComptrollerV7Storage is ComptrollerV6Storage {
-    /// @notice Flag indicating whether the function to fix COMP accruals has been executed (RE: proposal 62 bug)
-    bool public proposal65FixExecuted;
-
-    /// @notice Accounting storage mapping account addresses to how much COMP they owe the protocol.
-    mapping(address => uint) public compReceivable;
-}
-
-
-contract ComptrollerV8Storage is ComptrollerV7Storage {
+    /// @notice The XVS accrued but not yet transferred to each user
+    mapping(address => uint) public venusAccrued;
 
     /// @notice The Address of VAIController
     VAIControllerInterface public vaiController;
 
     /// @notice The minted VAI amount to each user
-    mapping(address => uint256) public mintedVAIs;
+    mapping(address => uint) public mintedVAIs;
+
+    /// @notice VAI Mint Rate as a percentage
+    uint public vaiMintRate;
+
+    /**
+     * @notice The Pause Guardian can pause certain actions as a safety mechanism.
+     */
+    bool public mintVAIGuardianPaused;
+    bool public repayVAIGuardianPaused;
+
+    /**
+     * @notice Pause/Unpause whole protocol actions
+     */
+    bool public protocolPaused;
+
+    /// @notice The rate at which the flywheel distributes XVS to VAI Minters, per block (deprecated)
+    uint private venusVAIRate;
+}
+
+contract ComptrollerV2Storage is ComptrollerV1Storage {
+    /// @notice The rate at which the flywheel distributes XVS to VAI Vault, per block
+    uint public venusVAIVaultRate;
+
+    // address of VAI Vault
+    address public vaiVaultAddress;
+
+    // start block of release to VAI Vault
+    uint256 public releaseStartBlock;
+
+    // minimum release amount to VAI Vault
+    uint256 public minReleaseAmount;
+}
+
+contract ComptrollerV3Storage is ComptrollerV2Storage {
+    /// @notice The borrowCapGuardian can set borrowCaps to any number for any market. Lowering the borrow cap could disable borrowing on the given market.
+    address public borrowCapGuardian;
+
+    /// @notice Borrow caps enforced by borrowAllowed for each vToken address. Defaults to zero which corresponds to unlimited borrowing.
+    mapping(address => uint) public borrowCaps;
+}
+
+contract ComptrollerV4Storage is ComptrollerV3Storage {
+    /// @notice Treasury Guardian address
+    address public treasuryGuardian;
+
+    /// @notice Treasury address
+    address public treasuryAddress;
+
+    /// @notice Fee percent of accrued interest with decimal 18
+    uint256 public treasuryPercent;
+}
+
+contract ComptrollerV5Storage is ComptrollerV4Storage {
+    /// @notice The portion of XVS that each contributor receives per block (deprecated)
+    mapping(address => uint) private venusContributorSpeeds;
+
+    /// @notice Last block at which a contributor's XVS rewards have been allocated (deprecated)
+    mapping(address => uint) private lastContributorBlock;
+}
+
+contract ComptrollerV6Storage is ComptrollerV5Storage {
+    address public liquidatorContract;
+}
+
+contract ComptrollerV7Storage is ComptrollerV6Storage {
+    ComptrollerLensInterface public comptrollerLens;
+}
+
+contract ComptrollerV8Storage is ComptrollerV7Storage {
+    
+    /// @notice Supply caps enforced by mintAllowed for each vToken address. Defaults to zero which corresponds to minting notAllowed
+    mapping(address => uint256) public supplyCaps;
+}
+    
+contract ComptrollerV9Storage is ComptrollerV8Storage {
+    /// @notice AccessControlManager address
+    address accessControl;
+
+    enum Action {
+        MINT,
+        REDEEM,
+        BORROW,
+        REPAY,
+        SEIZE,
+        LIQUIDATE,
+        TRANSFER,
+        ENTER_MARKET,
+        EXIT_MARKET
+    }
+
+    /// @notice True if a certain action is paused on a certain market
+    mapping (address => mapping(uint => bool)) internal _actionPaused;
 }

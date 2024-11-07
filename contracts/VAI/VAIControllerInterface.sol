@@ -1,23 +1,17 @@
 pragma solidity ^0.5.16;
 
-import { CTokenInterface } from "../CTokenInterfaces.sol";
+import "../VTokens/VToken.sol";
 
 contract VAIControllerInterface {
-    function mintVAI(uint256 mintVAIAmount) external returns (uint256);
+    function getVAIAddress() public view returns (address);
+    function getMintableVAI(address minter) public view returns (uint, uint);
+    function mintVAI(address minter, uint mintVAIAmount) external returns (uint);
+    function repayVAI(address repayer, uint repayVAIAmount) external returns (uint);
+    function liquidateVAI(address borrower, uint repayAmount, VTokenInterface vTokenCollateral) external returns (uint, uint);
 
-    function repayVAI(uint256 amount) external returns (uint256, uint256);
+    function _initializeVenusVAIState(uint blockNumber) external returns (uint);
+    function updateVenusVAIMintIndex() external returns (uint);
+    function calcDistributeVAIMinterVenus(address vaiMinter) external returns(uint, uint, uint, uint);
 
-    function repayVAIBehalf(address borrower, uint256 amount) external returns (uint256, uint256);
-
-    function liquidateVAI(
-        address borrower,
-        uint256 repayAmount,
-        CTokenInterface vTokenCollateral
-    ) external returns (uint256, uint256);
-
-    function getMintableVAI(address minter) external view returns (uint256, uint256);
-
-    function getVAIAddress() external view returns (address);
-
-    function getVAIRepayAmount(address account) external view returns (uint256);
+    function getVAIRepayAmount(address account) public view returns (uint);
 }

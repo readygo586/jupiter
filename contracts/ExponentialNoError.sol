@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity ^0.5.16;
 
 /**
  * @title Exponential module for storing fixed-precision decimals
@@ -94,7 +93,13 @@ contract ExponentialNoError {
     }
 
     function add_(uint a, uint b) pure internal returns (uint) {
-        return a + b;
+        return add_(a, b, "addition overflow");
+    }
+
+    function add_(uint a, uint b, string memory errorMessage) pure internal returns (uint) {
+        uint c = a + b;
+        require(c >= a, errorMessage);
+        return c;
     }
 
     function sub_(Exp memory a, Exp memory b) pure internal returns (Exp memory) {
@@ -106,6 +111,11 @@ contract ExponentialNoError {
     }
 
     function sub_(uint a, uint b) pure internal returns (uint) {
+        return sub_(a, b, "subtraction underflow");
+    }
+
+    function sub_(uint a, uint b, string memory errorMessage) pure internal returns (uint) {
+        require(b <= a, errorMessage);
         return a - b;
     }
 
@@ -134,7 +144,16 @@ contract ExponentialNoError {
     }
 
     function mul_(uint a, uint b) pure internal returns (uint) {
-        return a * b;
+        return mul_(a, b, "multiplication overflow");
+    }
+
+    function mul_(uint a, uint b, string memory errorMessage) pure internal returns (uint) {
+        if (a == 0 || b == 0) {
+            return 0;
+        }
+        uint c = a * b;
+        require(c / a == b, errorMessage);
+        return c;
     }
 
     function div_(Exp memory a, Exp memory b) pure internal returns (Exp memory) {
@@ -162,6 +181,11 @@ contract ExponentialNoError {
     }
 
     function div_(uint a, uint b) pure internal returns (uint) {
+        return div_(a, b, "divide by zero");
+    }
+
+    function div_(uint a, uint b, string memory errorMessage) pure internal returns (uint) {
+        require(b > 0, errorMessage);
         return a / b;
     }
 
