@@ -561,8 +561,8 @@ contract Comptroller is
         }
 
         // Keep the flywheel moving
-        Exp memory borrowIndex = Exp({mantissa: VToken(vToken).borrowIndex()});
-        updateVenusBorrowIndex(vToken, borrowIndex);
+        // Exp memory borrowIndex = Exp({mantissa: VToken(vToken).borrowIndex()});
+        // updateVenusBorrowIndex(vToken, borrowIndex);
         // distributeBorrowerVenus(vToken, borrower, borrowIndex);
 
         return uint(Error.NO_ERROR);
@@ -614,8 +614,8 @@ contract Comptroller is
         ensureListed(markets[vToken]);
 
         // Keep the flywheel moving
-        Exp memory borrowIndex = Exp({mantissa: VToken(vToken).borrowIndex()});
-        updateVenusBorrowIndex(vToken, borrowIndex);
+        // Exp memory borrowIndex = Exp({mantissa: VToken(vToken).borrowIndex()});
+        // updateVenusBorrowIndex(vToken, borrowIndex);
         // distributeBorrowerVenus(vToken, borrower, borrowIndex);
 
         return uint(Error.NO_ERROR);
@@ -1461,35 +1461,35 @@ contract Comptroller is
      * @notice Accrue XVS to the market by updating the borrow index
      * @param vToken The market whose borrow index to update
      */
-    function updateVenusBorrowIndex(
-        address vToken,
-        Exp memory marketBorrowIndex
-    ) internal {
-        VenusMarketState storage borrowState = venusBorrowState[vToken];
-        uint borrowSpeed = venusSpeeds[vToken];
-        uint blockNumber = getBlockNumber();
-        uint deltaBlocks = sub_(blockNumber, uint(borrowState.block));
-        if (deltaBlocks > 0 && borrowSpeed > 0) {
-            uint borrowAmount = div_(
-                VToken(vToken).totalBorrows(),
-                marketBorrowIndex
-            );
-            uint venusAccrued = mul_(deltaBlocks, borrowSpeed);
-            Double memory ratio = borrowAmount > 0
-                ? fraction(venusAccrued, borrowAmount)
-                : Double({mantissa: 0});
-            Double memory index = add_(
-                Double({mantissa: borrowState.index}),
-                ratio
-            );
-            venusBorrowState[vToken] = VenusMarketState({
-                index: safe224(index.mantissa, "new index overflows"),
-                block: safe32(blockNumber, "block number overflows")
-            });
-        } else if (deltaBlocks > 0) {
-            borrowState.block = safe32(blockNumber, "block number overflows");
-        }
-    }
+    // function updateVenusBorrowIndex(
+    //     address vToken,
+    //     Exp memory marketBorrowIndex
+    // ) internal {
+    //     VenusMarketState storage borrowState = venusBorrowState[vToken];
+    //     uint borrowSpeed = venusSpeeds[vToken];
+    //     uint blockNumber = getBlockNumber();
+    //     uint deltaBlocks = sub_(blockNumber, uint(borrowState.block));
+    //     if (deltaBlocks > 0 && borrowSpeed > 0) {
+    //         uint borrowAmount = div_(
+    //             VToken(vToken).totalBorrows(),
+    //             marketBorrowIndex
+    //         );
+    //         uint venusAccrued = mul_(deltaBlocks, borrowSpeed);
+    //         Double memory ratio = borrowAmount > 0
+    //             ? fraction(venusAccrued, borrowAmount)
+    //             : Double({mantissa: 0});
+    //         Double memory index = add_(
+    //             Double({mantissa: borrowState.index}),
+    //             ratio
+    //         );
+    //         venusBorrowState[vToken] = VenusMarketState({
+    //             index: safe224(index.mantissa, "new index overflows"),
+    //             block: safe32(blockNumber, "block number overflows")
+    //         });
+    //     } else if (deltaBlocks > 0) {
+    //         borrowState.block = safe32(blockNumber, "block number overflows");
+    //     }
+    // }
 
     /**
      * @notice Calculate XVS accrued by a supplier and possibly transfer it to them
