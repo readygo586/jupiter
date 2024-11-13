@@ -129,7 +129,7 @@ contract VAIController is
             MintLocalVars memory vars;
 
             address minter = msg.sender;
-            uint vaiTotalSupply = EIP20Interface(getVAIAddress()).totalSupply();
+            uint vaiTotalSupply = EIP20Interface(vai).totalSupply();
             uint vaiNewTotalSupply;
 
             (vars.mathErr, vaiNewTotalSupply) = addUInt(
@@ -250,14 +250,14 @@ contract VAIController is
                         );
                 }
 
-                VAI(getVAIAddress()).mint(treasuryAddress, feeAmount);
+                VAI(vai).mint(treasuryAddress, feeAmount);
 
                 emit MintFee(minter, feeAmount);
             } else {
                 remainedAmount = vars.mintAmount;
             }
 
-            VAI(getVAIAddress()).mint(minter, remainedAmount);
+            VAI(vai).mint(minter, remainedAmount);
             vaiMinterInterestIndex[minter] = vaiMintIndex;
 
             emit MintVAI(minter, remainedAmount);
@@ -310,8 +310,8 @@ contract VAIController is
             uint partOfPastInterest
         ) = getVAICalculateRepayAmount(borrower, repayAmount);
 
-        VAI(getVAIAddress()).burn(payer, burn);
-        bool success = VAI(getVAIAddress()).transferFrom(
+        VAI(vai).burn(payer, burn);
+        bool success = VAI(vai).transferFrom(
             payer,
             receiver,
             partOfCurrentInterest
@@ -764,7 +764,7 @@ contract VAIController is
 
         if (baseRateMantissa > 0) {
             if (floatRateMantissa > 0) {
-                uint oraclePrice = oracle.getUnderlyingPrice((getVAIAddress()));
+                uint oraclePrice = oracle.getUnderlyingPrice((vai));
                 if (1e18 >= oraclePrice) {
                     uint delta;
                     uint rate;
@@ -1044,8 +1044,7 @@ contract VAIController is
         return block.number;
     }
 
-    function getBlocksPerYear() public view returns (uint) {
-        //TODO:Orange:修改Block Per Year
+    function getBlocksPerYear() public pure returns (uint) {
         return 10512000; //(24 * 60 * 60 * 365) / 3;
     }
 
@@ -1054,8 +1053,7 @@ contract VAIController is
      * @return The address of VAI
      */
     function getVAIAddress() public view returns (address) {
-        // TODO: Orange 修改VAI地址
-        return 0x4BD17003473389A42DAF6a0a729f6Fdb328BbBd7;
+        return vai;
     }
 
     function initialize() public onlyAdmin {
@@ -1063,9 +1061,21 @@ contract VAIController is
         _notEntered = true;
     }
 
+    /**
+     * @notice Set the VAI token contract address
+     * @param vai_ The new address of the VAI token contract
+     */
+    function setVAIAddress(address vai_) external onlyAdmin {
+        vai = vai_;
+    }
+
     modifier onlyAdmin() {
         require(msg.sender == admin, "only admin can");
         _;
+    }
+
+    constructor() public {
+        admin = msg.sender;
     }
 
     /*** Reentrancy Guard ***/

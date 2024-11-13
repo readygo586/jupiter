@@ -1,4 +1,4 @@
-const { ethers } = require("hardhat");
+const { ethers, network } = require("hardhat");
 const big17 = BigInt(10) ** BigInt(17);
 const big18 = BigInt(10) ** BigInt(18);
 async function deployComptroller() {
@@ -40,12 +40,12 @@ async function deployComptroller() {
     await comptroller._setLiquidationIncentive(big18);
 
 
-    return { unitroller, comptroller, accessControlInstance }
+    return { unitroller, comptroller, accessControlInstance, mockPriceOracleInstance }
 }
 
 async function deployVToken() {
     const [signer] = await ethers.getSigners();
-    const { unitroller, comptroller, accessControlInstance } = await deployComptroller();
+    const { unitroller, comptroller, accessControlInstance, mockPriceOracleInstance } = await deployComptroller();
 
     const interestRateModel = await ethers.getContractFactory("WhitePaperInterestRateModel");
     const interestRateModelInstance = await interestRateModel.deploy(big18 * 2n, big18 * 10n);
@@ -95,13 +95,49 @@ async function deployVToken() {
         "0x"
     );
     await vTokenInstanceUSDC.waitForDeployment();
-
-
+    await mockPriceOracleInstance.setUnderlyingPrice(await vTokenInstanceUSDT.getAddress(), BigInt(10) ** BigInt(18));
+    await mockPriceOracleInstance.setUnderlyingPrice(await vTokenInstanceUSDC.getAddress(), BigInt(10) ** BigInt(18));
+    // await mockPriceOracleInstance.setUnderlyingPrice(await USDC.getAddress(), BigInt(10) ** BigInt(18));
+    // await mockPriceOracleInstance.setUnderlyingPrice(await USDT.getAddress(), BigInt(10) ** BigInt(18));
 
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_supportMarket(address)`, signer);
     await comptroller._supportMarket(await vTokenInstanceUSDT.getAddress());
     await comptroller._supportMarket(await vTokenInstanceUSDC.getAddress());
+    await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setMarketSupplyCaps(address[],uint256[])`, signer);
+    await comptroller._setMarketSupplyCaps([await vTokenInstanceUSDT.getAddress(), await vTokenInstanceUSDC.getAddress()], [BigInt(10) ** BigInt(25), BigInt(10) ** BigInt(25)]);
+    // _setMarketBorrowCaps
     return { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, comptroller };
 }
 
-module.exports = { deployComptroller, deployVToken }
+async function deployVai() {
+    const [signer] = await ethers.getSigners();
+    const { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, comptroller } = await deployVToken();
+    const VAI = await ethers.getContractFactory("VAI");
+    const vai = await VAI.deploy(network.config.chainId);
+    await vai.waitForDeployment();
+
+    const VaiUnitrollerFactory = await ethers.getContractFactory("VAIUnitroller");
+    const vaiUnitroller = await VaiUnitrollerFactory.deploy();
+    await vaiUnitroller.waitForDeployment();
+
+    const VaiComptrollerFactory = await ethers.getContractFactory("VAIController");
+    const vaiComptroller = await VaiComptrollerFactory.deploy();
+    await vaiComptroller.waitForDeployment();
+
+    await vaiUnitroller._setPendingImplementation(await vaiComptroller.getAddress());
+    await vaiComptroller._become(await vaiUnitroller.getAddress());
+
+    const vaiInstance = await ethers.getContractAt("VAIController", await vaiComptroller.getAddress());
+    await vaiInstance._setComptroller(await comptroller.getAddress());
+    await vaiInstance.setVAIAddress(await vai.getAddress());
+    await vaiInstance.initialize();
+    await comptroller._setVAIController(await vaiInstance.getAddress());
+    await vai.rely(await vaiInstance.getAddress());
+
+    return {
+        USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, comptroller, vai, vaiInstance
+    }
+
+}
+
+module.exports = { deployComptroller, deployVToken, deployVai }
