@@ -66,12 +66,13 @@ describe("Comptroller", () => {
         chai.expect(markets).to.be.deep.equal([await vUSDT.getAddress(), await vUSDC.getAddress()]);
         await vUSDT.mint(BigInt(100) * BigInt(10) ** BigInt(18));
         await vUSDC.mint(BigInt(100) * BigInt(10) ** BigInt(18));
+        chai.expect(await vUSDT.balanceOf(signer.address)).to.be.equal(BigInt(100) * BigInt(10) ** BigInt(18));
+        chai.expect(await vUSDC.balanceOf(signer.address)).to.be.equal(BigInt(100) * BigInt(10) ** BigInt(18));
     });
 
     it("check Accrue Interest", async () => {
-        const result = await VaiInstance.mintVAI(BigInt(10) ** BigInt(18));
-        console.log(result)
-        console.log(await VAI.balanceOf(signer.address));
+        await VaiInstance.mintVAI(BigInt(100) * BigInt(10) ** BigInt(18));
+        chai.expect(await VAI.balanceOf(signer.address)).to.be.equal(BigInt(100) * BigInt(10) ** BigInt(18));
     });
 
 })

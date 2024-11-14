@@ -99,10 +99,12 @@ async function deployVToken() {
     await mockPriceOracleInstance.setUnderlyingPrice(await vTokenInstanceUSDC.getAddress(), BigInt(10) ** BigInt(18));
     // await mockPriceOracleInstance.setUnderlyingPrice(await USDC.getAddress(), BigInt(10) ** BigInt(18));
     // await mockPriceOracleInstance.setUnderlyingPrice(await USDT.getAddress(), BigInt(10) ** BigInt(18));
-
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_supportMarket(address)`, signer);
     await comptroller._supportMarket(await vTokenInstanceUSDT.getAddress());
     await comptroller._supportMarket(await vTokenInstanceUSDC.getAddress());
+    await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setCollateralFactor(address,uint256)`, signer);
+    await comptroller._setCollateralFactor(await vTokenInstanceUSDT.getAddress(), big17 * 8n);
+    await comptroller._setCollateralFactor(await vTokenInstanceUSDC.getAddress(), big17 * 8n);
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setMarketSupplyCaps(address[],uint256[])`, signer);
     await comptroller._setMarketSupplyCaps([await vTokenInstanceUSDT.getAddress(), await vTokenInstanceUSDC.getAddress()], [BigInt(10) ** BigInt(25), BigInt(10) ** BigInt(25)]);
     // _setMarketBorrowCaps
@@ -132,6 +134,7 @@ async function deployVai() {
     await vaiInstance.setVAIAddress(await vai.getAddress());
     await vaiInstance.initialize();
     await comptroller._setVAIController(await vaiInstance.getAddress());
+    await comptroller._setVAIMintRate(10000);
     await vai.rely(await vaiInstance.getAddress());
 
     return {
