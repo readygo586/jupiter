@@ -579,10 +579,6 @@ contract VAIController is
             unitroller._acceptImplementation() == 0,
             "change not authorized"
         );
-
-        vaiMintIndex = 1e18;
-        accrualBlockNumber = getBlockNumber();
-        mintCap = uint(-1);
     }
 
     /**
@@ -1057,9 +1053,14 @@ contract VAIController is
     }
 
     function initialize() public onlyAdmin {
+        
+        // Bug fixed.
+        vaiMintIndex = 1e18;
+        accrualBlockNumber = getBlockNumber();
+        mintCap = uint(-1);
+
         // The counter starts true to prevent changing it from zero to non-zero (i.e. smaller cost/refund)
         _notEntered = true;
-        mintCap = uint(-1);
     }
 
     /**

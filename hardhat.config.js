@@ -28,7 +28,7 @@ module.exports = {
     bsc_testnet: {
       url: "https://bsc-testnet.public.blastapi.io",
       chainId: 97,
-      accounts: [`a8e4e54a851b23a3f53fceb29524c78ca18d0b2bbca39d8c9f4ad5eb8e68e5f8`],
+      accounts: [`329d45df2086825022b2b648fc39ebc4f3edaa0dac7612af86b923f57fd6e26c`],
       gas: 10000000,
     }
   }

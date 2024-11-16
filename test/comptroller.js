@@ -70,8 +70,12 @@ describe("Comptroller", () => {
         chai.expect(await vUSDC.balanceOf(signer.address)).to.be.equal(BigInt(100) * BigInt(10) ** BigInt(18));
     });
 
-    it("check Accrue Interest", async () => {
+    it("mint Vai", async () => {
         await VaiInstance.mintVAI(BigInt(100) * BigInt(10) ** BigInt(18));
+        chai.expect(await VAI.balanceOf(signer.address)).to.be.equal(BigInt(100) * BigInt(10) ** BigInt(18));
+    });
+    it("Mint Vai again", async () => {
+        await VaiInstance.mintVAI(BigInt(60) * BigInt(10) ** BigInt(18));
         chai.expect(await VAI.balanceOf(signer.address)).to.be.equal(BigInt(100) * BigInt(10) ** BigInt(18));
     });
 

@@ -14,11 +14,11 @@ async function deployComptroller() {
     console.log("Comptroller deployed to:", await _comptroller.getAddress());
     await unitroller._setPendingImplementation(await _comptroller.getAddress(), { gasLimit: "0x1000000" });
 
-
+    await sleep(5000);
 
     await _comptroller._become(await unitroller.getAddress(), { gasLimit: "0x1000000" });
 
-
+    await sleep(5000);
 
     const comptroller = await ethers.getContractAt("Comptroller", await unitroller.getAddress());
 
@@ -33,23 +33,23 @@ async function deployComptroller() {
     const mockPriceOracle = await ethers.getContractFactory("SimplePriceOracle");
     const mockPriceOracleInstance = await mockPriceOracle.deploy({ gasLimit: "0x1000000" });
     await mockPriceOracleInstance.waitForDeployment();
-
+    await sleep(5000);
 
     await comptroller._setComptrollerLens(await comptrollerLensInstance.getAddress(), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._setAccessControl(await accessControlInstance.getAddress(), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._setPriceOracle(await mockPriceOracleInstance.getAddress(), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     // Set close factor to 50%
     await comptroller._setCloseFactor(big17 * (5n), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
 
     // Set liquidation incentive to 0%
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setLiquidationIncentive(uint256)`, signer, { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._setLiquidationIncentive(big18, { gasLimit: "0x1000000" });
-
+    await sleep(5000);
 
 
 
@@ -112,35 +112,35 @@ async function deployVToken() {
         "0x", { gasLimit: "0x1000000" }
     );
     await vTokenInstanceUSDC.waitForDeployment();
-
+    await sleep(5000);
     await mockPriceOracleInstance.setUnderlyingPrice(await vTokenInstanceUSDT.getAddress(), BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await mockPriceOracleInstance.setUnderlyingPrice(await vTokenInstanceUSDC.getAddress(), BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     // await mockPriceOracleInstance.setUnderlyingPrice(await USDC.getAddress(), BigInt(10) ** BigInt(18));
     // await mockPriceOracleInstance.setUnderlyingPrice(await USDT.getAddress(), BigInt(10) ** BigInt(18));
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_supportMarket(address)`, signer, { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._supportMarket(await vTokenInstanceUSDT.getAddress(), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._supportMarket(await vTokenInstanceUSDC.getAddress(), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setCollateralFactor(address,uint256)`, signer, { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._setCollateralFactor(await vTokenInstanceUSDT.getAddress(), big17 * 8n, { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._setCollateralFactor(await vTokenInstanceUSDC.getAddress(), big17 * 8n, { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setMarketSupplyCaps(address[],uint256[])`, signer, { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._setMarketSupplyCaps([await vTokenInstanceUSDT.getAddress(), await vTokenInstanceUSDC.getAddress()], [BigInt(10) ** BigInt(25), BigInt(10) ** BigInt(25)], { gasLimit: "0x1000000" });
     // _setMarketBorrowCaps
 
-
+    await sleep(5000);
     console.log("price oracle deployed to:", await mockPriceOracleInstance.getAddress());
-
+    await sleep(5000);
     console.log("access control deployed to:", await accessControlInstance.getAddress());
-
+    await sleep(5000);
     return { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, comptroller };
 }
 
@@ -163,19 +163,19 @@ async function deployVai() {
     await vaiComptroller._become(await vaiUnitroller.getAddress(), { gasLimit: "0x1000000" });
 
     const vaiInstance = await ethers.getContractAt("VAIController", await vaiUnitroller.getAddress());
-
+    await sleep(5000);
     await vaiInstance._setComptroller(await comptroller.getAddress(), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await vaiInstance.setVAIAddress(await vai.getAddress(), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await vaiInstance.initialize({ gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._setVAIController(await vaiInstance.getAddress(), { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await comptroller._setVAIMintRate(10000, { gasLimit: "0x1000000" });
-
+    await sleep(5000);
     await vai.rely(await vaiInstance.getAddress(), { gasLimit: "0x1000000" });
-    await vaiInstance.setMintCap(ethers.MaxUint256);
+
     console.log("VAI deployed to:", await vai.getAddress());
     console.log("VAIController deployed to:", await vaiInstance.getAddress());
     console.log("vUSDT deployed to:", await vTokenInstanceUSDT.getAddress());
