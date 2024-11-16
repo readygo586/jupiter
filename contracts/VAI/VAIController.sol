@@ -1059,6 +1059,7 @@ contract VAIController is
     function initialize() public onlyAdmin {
         // The counter starts true to prevent changing it from zero to non-zero (i.e. smaller cost/refund)
         _notEntered = true;
+        mintCap = uint(-1);
     }
 
     /**

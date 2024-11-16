@@ -1,11 +1,8 @@
-import { ethers } from 'hardhat';
-
+const { deployComptroller, deployVToken, deployVai } = require("../utils/deploy");
 
 
 async function main() {
-    const [deployer, userA] = await ethers.getSigners();
-    const comptroller = await deployComptroller(deployer, overrides);
-    console.log('#1 Comptroller Deployed at: ', comptroller.address);
+    await deployVai();
 }
 
 
