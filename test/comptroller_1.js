@@ -14,7 +14,7 @@ describe("Comptroller_1", () => {
 
     beforeEach(async function () {
         [signer] = await ethers.getSigners();
-        const { comptroller, vTokenInstanceUSDT, vTokenInstanceUSDC, vTokenInstanceBTC,vai, vaiInstance } = await deployVai();
+        const { comptroller, vTokenInstanceUSDT, vTokenInstanceUSDC, vTokenInstanceBTC, vai, vaiInstance } = await deployVai();
         Comptroller = comptroller;
         vUSDT = vTokenInstanceUSDT;
         vUSDC = vTokenInstanceUSDC;
@@ -33,7 +33,7 @@ describe("Comptroller_1", () => {
         chai.expect(vBTCName).to.be.equal("vBTC");
         chai.expect(vBTCSymbol).to.be.equal("vBTC");
         chai.expect(vBTCDecimals).to.be.equal(18);
-   
+
         let WBTCName = await WBTC.name();
         let WBTCSymbol = await WBTC.symbol();
         let WBTCDecimals = await WBTC.decimals();
@@ -59,22 +59,22 @@ describe("Comptroller_1", () => {
     it("check Redeem vBTC", async () => {
         let WBTCBalance = await WBTC.balanceOf(signer.address);
         await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
-        let half = WBTCBalance/2n;
+        let half = WBTCBalance / 2n;
         await vBTC.mint(half);
-        let vBTCBalance = await vBTC.balanceOf(signer); 
+        let vBTCBalance = await vBTC.balanceOf(signer);
         chai.expect(vBTCBalance).to.be.equal(half);
         chai.expect(await WBTC.balanceOf(signer.address)).to.be.equal(half);
 
-        let redeemAmount = half/2n;
+        let redeemAmount = half / 2n;
         await vBTC.redeem(redeemAmount);
-        let vBTCBalance2 = await vBTC.balanceOf(signer); 
+        let vBTCBalance2 = await vBTC.balanceOf(signer);
         chai.expect(vBTCBalance2).to.be.equal(half - redeemAmount);
         chai.expect(await WBTC.balanceOf(signer.address)).to.be.equal(half + redeemAmount);
     });
 
-    it ("check initial price", async () => {
-        let allMarkets = await Comptroller.getAllMarkets(); 
-        const prices = [BigInt(10) ** BigInt(18), BigInt(10) ** BigInt(18), BigInt(97000)*BigInt(10) ** BigInt(18)];
+    it("check initial price", async () => {
+        let allMarkets = await Comptroller.getAllMarkets();
+        const prices = [BigInt(10) ** BigInt(18), BigInt(10) ** BigInt(18), BigInt(97000) * BigInt(10) ** BigInt(18)];
 
         let oracle = await ethers.getContractAt("PriceOracle", await Comptroller.oracle());
 
@@ -109,21 +109,21 @@ describe("Comptroller_1", () => {
             chai.expect(cashAmount).to.be.equal(0);
             chai.expect(borrowAmount).to.be.equal(0);
             chai.expect(reserveAmount).to.be.equal(0);
-            chai.expect(vTotalSupply * exchangeRate).to.be.equal(cashAmount+borrowAmount-reserveAmount); //if totalSupply == 0,  exchangeRate = 1e18, else exchangeRate = (totalCash + totalBorrows - totalReserves) / totalSupply
-            
+            chai.expect(vTotalSupply * exchangeRate).to.be.equal(cashAmount + borrowAmount - reserveAmount); //if totalSupply == 0,  exchangeRate = 1e18, else exchangeRate = (totalCash + totalBorrows - totalReserves) / totalSupply
+
             let oracle = await ethers.getContractAt("PriceOracle", await Comptroller.oracle());
             let price = await oracle.getUnderlyingPrice(allMarkets[i]);
             console.log("price", price);
-            assets[i] = vTotalSupply * exchangeRate * price ;
+            assets[i] = vTotalSupply * exchangeRate * price;
             symbols[i] = symbol;
 
         }
 
         for (let i = 0; i < allMarkets.length; i++) {
-            console.log( symbols[i], assets[i]);       
+            console.log(symbols[i], assets[i]);
             totalSupply += assets[i];
         }
-        
+
         console.log("totalSupply", totalSupply);
     });
 
@@ -147,80 +147,80 @@ describe("Comptroller_1", () => {
             let underlying = await vToken.underlying();
             let token = await ethers.getContractAt("BEP20Harness", underlying);
             let symbol = await token.symbol();
-            chai.expect(vTotalSupply * exchangeRate).to.be.equal(cashAmount+borrowAmount-reserveAmount); //if totalSupply == 0,  exchangeRate = 1e18, else exchangeRate = (totalCash + totalBorrows - totalReserves) / totalSupply
+            chai.expect(vTotalSupply * exchangeRate).to.be.equal(cashAmount + borrowAmount - reserveAmount); //if totalSupply == 0,  exchangeRate = 1e18, else exchangeRate = (totalCash + totalBorrows - totalReserves) / totalSupply
             assets[i] = vTotalSupply * exchangeRate;
             symbols[i] = symbol;
         }
 
         for (let i = 0; i < allMarkets.length; i++) {
-            console.log( symbols[i], assets[i]);       
+            console.log(symbols[i], assets[i]);
             totalSupply += assets[i];
         }
-        
+
         console.log("totalSupply", totalSupply);
     });
 
 
 
 
-    it ("total minted VAI", async () => {
+    it("total minted VAI", async () => {
         let totalSupply = await VAI.totalSupply();
         console.log("vai totalSupply", totalSupply);
     });
 
 
-    it ("VAI balance", async () => {
+    it("VAI balance", async () => {
         let vaiAmount = await VAI.balanceOf(signer.address);
         console.log("vaiAmount", vaiAmount);
     });
 
 
-    it ("mint VAI", async () => {
+    it("mint VAI", async () => {
         await Comptroller.enterMarkets([await vBTC.getAddress()]);
         const markets = await Comptroller.getAssetsIn(signer.address);
         chai.expect(markets).to.be.deep.equal([await vBTC.getAddress()]);
         let WBTCBalance = await WBTC.balanceOf(signer.address);
         await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
         await vBTC.mint(WBTCBalance);
-        
-        let [res ,mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+
+        let [res, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
         chai.expect(res).to.be.equal(0);  //0 = success, otherwise fail
 
-        let half = mintableAmount/2n;
+        let half = mintableAmount / 2n;
         await VaiInstance.mintVAI(half);
-     
+
         let VAIbalance = await VAI.balanceOf(signer.address);
         chai.expect(VAIbalance).to.be.equal(half);
 
-        let [,remainedMintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+        let [, remainedMintableAmount] = await VaiInstance.getMintableVAI(signer.address);
         chai.expect(remainedMintableAmount).to.be.equal(half);
 
-        let quarter = half/2n;
+        let quarter = half / 2n;
         await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
         await VaiInstance.repayVAI(quarter);
         VAIbalance = await VAI.balanceOf(signer.address);
         chai.expect(VAIbalance).to.be.equal(quarter);
     });
 
-    it ("account status", async () => {
-        let allMarkets = await Comptroller.getAllMarkets(); 
+    it("account status", async () => {
+        let allMarkets = await Comptroller.getAllMarkets();
 
         await Comptroller.enterMarkets([await vBTC.getAddress()]);
         let WBTCBalance = await WBTC.balanceOf(signer.address);
         await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
         await vBTC.mint(WBTCBalance);
-        
-        let [ ,mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
-        let half = mintableAmount/2n;
+
+        let [, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+        let half = mintableAmount / 2n;
         await VaiInstance.mintVAI(half);
-     
+
         let oracle = await ethers.getContractAt("PriceOracle", await Comptroller.oracle());
 
         //用户资产详情
         let assets = new Array(allMarkets.length);
         let symbols = new Array(allMarkets.length);
-        let totalAsset =BigInt(0);
-        for (let i = 0; i < allMarkets.length ; i++) {
+        let totalAsset = BigInt(0);
+        for (let i = 0; i < allMarkets.length; i++) {
             let vToken = await ethers.getContractAt("VBep20Delegator", allMarkets[i]);
             let underlying = await vToken.underlying();
             let token = await ethers.getContractAt("BEP20Harness", underlying);
@@ -237,11 +237,11 @@ describe("Comptroller_1", () => {
         for (let i = 0; i < allMarkets.length; i++) {
             membership[i] = false;
         }
-        
+
         let markets = await Comptroller.getAssetsIn(signer.address);
         for (let i = 0; i < allMarkets.length; i++) {
             for (let j = 0; j < markets.length; j++) {
-                if(allMarkets[i] == markets[j]) {
+                if (allMarkets[i] == markets[j]) {
                     membership[i] = true;
                 }
             }
@@ -252,19 +252,19 @@ describe("Comptroller_1", () => {
         let VAIbalance = await VAI.balanceOf(signer.address);
         chai.expect(VAIbalance).to.be.equal(half);
 
-        let [ ,remainedMintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+        let [, remainedMintableAmount] = await VaiInstance.getMintableVAI(signer.address);
         chai.expect(remainedMintableAmount).to.be.equal(half);
 
-        let borrowLimitedUsed = VAIbalance*BigInt(100)/(VAIbalance+remainedMintableAmount);
+        let borrowLimitedUsed = VAIbalance * BigInt(100) / (VAIbalance + remainedMintableAmount);
         chai.expect(borrowLimitedUsed).to.be.equal(50);
     });
-      
-    // it ("enter and exits markets", async () => {
-    //     await Comptroller.enterMarkets([await vUSDC.getAddress()]);
-    //     const markets = await Comptroller.getAssetsIn(signer.address);
-    //     chai.expect(markets).to.be.deep.equal([await vUSDC.getAddress()]);
-    //     await Comptroller.exitMarket(await vUSDC.getAddress());
-    // });
+
+    it("enter and exits markets", async () => {
+        await Comptroller.enterMarkets([await vUSDC.getAddress()]);
+        const markets = await Comptroller.getAssetsIn(signer.address);
+        chai.expect(markets).to.be.deep.equal([await vUSDC.getAddress()]);
+        await Comptroller.exitMarket(await vUSDC.getAddress());
+    });
 
     /*
       let WBTCBalance = await WBTC.balanceOf(signer.address);
