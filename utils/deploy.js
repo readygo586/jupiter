@@ -1,17 +1,19 @@
 const { ethers, network } = require("hardhat");
+const big16 = BigInt(10) ** BigInt(16);
 const big17 = BigInt(10) ** BigInt(17);
 const big18 = BigInt(10) ** BigInt(18);
+
 async function deployComptroller() {
     const [signer] = await ethers.getSigners();
     const UnitrollerFactory = await ethers.getContractFactory("Unitroller");
     const unitroller = await UnitrollerFactory.deploy({ gasLimit: "0x1000000" });
     await unitroller.waitForDeployment();
-    console.log("Unitroller deployed to:", await unitroller.getAddress());
+    // console.log("Unitroller deployed to:", await unitroller.getAddress());
 
     const ComptrollerFactory = await ethers.getContractFactory("Comptroller");
     const _comptroller = await ComptrollerFactory.deploy({ gasLimit: "0x1000000" });
     await _comptroller.waitForDeployment();
-    console.log("Comptroller deployed to:", await _comptroller.getAddress());
+    // console.log("Comptroller deployed to:", await _comptroller.getAddress());
     await unitroller._setPendingImplementation(await _comptroller.getAddress(), { gasLimit: "0x1000000" });
 
 
@@ -45,12 +47,10 @@ async function deployComptroller() {
     await comptroller._setCloseFactor(big17 * (5n), { gasLimit: "0x1000000" });
 
 
-    // Set liquidation incentive to 0%
+    // Set liquidation incentive to 5%
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setLiquidationIncentive(uint256)`, signer, { gasLimit: "0x1000000" });
 
-    await comptroller._setLiquidationIncentive(big18, { gasLimit: "0x1000000" });
-
-
+    await comptroller._setLiquidationIncentive(big18*(5n), { gasLimit: "0x1000000" });
 
 
     return { unitroller, comptroller, accessControlInstance, mockPriceOracleInstance }
@@ -65,10 +65,12 @@ async function deployVToken() {
     await interestRateModelInstance.waitForDeployment();
 
     const BEP20Harness = await ethers.getContractFactory("BEP20Harness");
+    
+    //deploy USDT
     const USDT = await BEP20Harness.deploy(BigInt(10) ** BigInt(25), "USDT", 18, "USDT", { gasLimit: "0x1000000" });
     await USDT.waitForDeployment();
 
-    console.log("USDT deployed to:", await USDT.getAddress());
+    // console.log("USDT deployed to:", await USDT.getAddress());
 
     const vTokenDelegateUSDT = await ethers.getContractFactory("VBep20Delegate");
     const vTokenDelegateInstanceUSDT = await vTokenDelegateUSDT.deploy({ gasLimit: "0x1000000" });
@@ -89,10 +91,11 @@ async function deployVToken() {
     );
     await vTokenInstanceUSDT.waitForDeployment();
 
+    //deploy USDC
     const USDC = await BEP20Harness.deploy(BigInt(10) ** BigInt(25), "USDC", 18, "USDC", { gasLimit: "0x1000000" });
     await USDC.waitForDeployment();
 
-    console.log("USDC deployed to:", await USDC.getAddress());
+    // console.log("USDC deployed to:", await USDC.getAddress());
 
     const vTokenDelegateUSDC = await ethers.getContractFactory("VBep20Delegate");
     const vTokenDelegateInstanceUSDC = await vTokenDelegateUSDC.deploy({ gasLimit: "0x1000000" });
@@ -113,9 +116,35 @@ async function deployVToken() {
     );
     await vTokenInstanceUSDC.waitForDeployment();
 
-    await mockPriceOracleInstance.setUnderlyingPrice(await vTokenInstanceUSDT.getAddress(), BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
+    //deploy WBTC
+    const WBTC = await BEP20Harness.deploy(BigInt(10) ** BigInt(20), "WBTC", 18, "WBTC", { gasLimit: "0x1000000" }); //100 WBTC 
+    await WBTC.waitForDeployment();
+    
+    // console.log("WBTC deployed to:", await WBTC.getAddress());
+    
+    const vTokenDelegateWBTC = await ethers.getContractFactory("VBep20Delegate");
+    const vTokenDelegateInstanceWBTC = await vTokenDelegateWBTC.deploy({ gasLimit: "0x1000000" });
+    await vTokenDelegateInstanceWBTC.waitForDeployment();
+    
+    const vTokenBTC = await ethers.getContractFactory("VBep20Delegator");
+    const vTokenInstanceBTC = await vTokenBTC.deploy(
+            await WBTC.getAddress(),
+            await comptroller.getAddress(),
+            await interestRateModelInstance.getAddress(),
+            big18,
+            "vBTC",
+            "vBTC",
+            18,
+            signer.address,
+            await vTokenDelegateInstanceWBTC.getAddress(),
+            "0x", { gasLimit: "0x1000000" }
+        );
+    await vTokenInstanceBTC.waitForDeployment();
 
+    await mockPriceOracleInstance.setUnderlyingPrice(await vTokenInstanceUSDT.getAddress(), BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
     await mockPriceOracleInstance.setUnderlyingPrice(await vTokenInstanceUSDC.getAddress(), BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
+    await mockPriceOracleInstance.setUnderlyingPrice(await vTokenInstanceBTC.getAddress(), BigInt(97000) * BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
+            
 
     // await mockPriceOracleInstance.setUnderlyingPrice(await USDC.getAddress(), BigInt(10) ** BigInt(18));
     // await mockPriceOracleInstance.setUnderlyingPrice(await USDT.getAddress(), BigInt(10) ** BigInt(18));
@@ -125,28 +154,32 @@ async function deployVToken() {
 
     await comptroller._supportMarket(await vTokenInstanceUSDC.getAddress(), { gasLimit: "0x1000000" });
 
+    await comptroller._supportMarket(await vTokenInstanceBTC.getAddress(), { gasLimit: "0x1000000" });
+
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setCollateralFactor(address,uint256)`, signer, { gasLimit: "0x1000000" });
 
     await comptroller._setCollateralFactor(await vTokenInstanceUSDT.getAddress(), big17 * 8n, { gasLimit: "0x1000000" });
 
     await comptroller._setCollateralFactor(await vTokenInstanceUSDC.getAddress(), big17 * 8n, { gasLimit: "0x1000000" });
 
+    await comptroller._setCollateralFactor(await vTokenInstanceBTC.getAddress(), big17 * 7n, { gasLimit: "0x1000000" });
+
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setMarketSupplyCaps(address[],uint256[])`, signer, { gasLimit: "0x1000000" });
 
-    await comptroller._setMarketSupplyCaps([await vTokenInstanceUSDT.getAddress(), await vTokenInstanceUSDC.getAddress()], [BigInt(10) ** BigInt(25), BigInt(10) ** BigInt(25)], { gasLimit: "0x1000000" });
+    await comptroller._setMarketSupplyCaps([await vTokenInstanceUSDT.getAddress(), await vTokenInstanceUSDC.getAddress(), await vTokenInstanceBTC.getAddress()], [BigInt(10) ** BigInt(25), BigInt(10) ** BigInt(25), ethers.MaxUint256], { gasLimit: "0x1000000" });
     // _setMarketBorrowCaps
 
 
-    console.log("price oracle deployed to:", await mockPriceOracleInstance.getAddress());
+    // console.log("price oracle deployed to:", await mockPriceOracleInstance.getAddress());
 
-    console.log("access control deployed to:", await accessControlInstance.getAddress());
+    // console.log("access control deployed to:", await accessControlInstance.getAddress());
 
-    return { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, comptroller };
+    return { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, WBTC, vTokenInstanceBTC, comptroller };
 }
 
 async function deployVai() {
     const [signer] = await ethers.getSigners();
-    const { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, comptroller } = await deployVToken();
+    const { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, WBTC, vTokenInstanceBTC, comptroller } = await deployVToken();
     const VAI = await ethers.getContractFactory("VAI");
     const vai = await VAI.deploy(network.config.chainId, { gasLimit: "0x1000000" });
     await vai.waitForDeployment();
@@ -176,14 +209,14 @@ async function deployVai() {
 
     await vai.rely(await vaiInstance.getAddress(), { gasLimit: "0x1000000" });
     await vaiInstance.setMintCap(ethers.MaxUint256);
-    console.log("VAI deployed to:", await vai.getAddress());
-    console.log("VAIController deployed to:", await vaiInstance.getAddress());
-    console.log("vUSDT deployed to:", await vTokenInstanceUSDT.getAddress());
-    console.log("vUSDC deployed to:", await vTokenInstanceUSDC.getAddress());
-
+    // console.log("VAI deployed to:", await vai.getAddress());
+    // console.log("VAIController deployed to:", await vaiInstance.getAddress());
+    // console.log("vUSDT deployed to:", await vTokenInstanceUSDT.getAddress());
+    // console.log("vUSDC deployed to:", await vTokenInstanceUSDC.getAddress());
+    // console.log("vBTC deployed to:", await vTokenInstanceBTC.getAddress());
 
     return {
-        USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, comptroller, vai, vaiInstance
+        USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, WBTC, vTokenInstanceBTC, comptroller, vai, vaiInstance
     }
 
 }

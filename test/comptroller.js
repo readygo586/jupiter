@@ -8,25 +8,30 @@ const { deployComptroller, deployVToken, deployVai } = require("../utils/deploy"
 
 describe("Comptroller", () => {
 
-    let Comptroller, vUSDT, vUSDC, USDT, USDC, VAI, VaiInstance;
+    let Comptroller, vUSDT, vUSDC, vBTC, USDT, USDC, WBTC, VAI, VaiInstance;
     let signer;
 
     before(async function () {
         [signer] = await ethers.getSigners();
-        const { comptroller, vTokenInstanceUSDT, vTokenInstanceUSDC, vai, vaiInstance } = await deployVai();
+        const { comptroller, vTokenInstanceUSDT, vTokenInstanceUSDC, vTokenInstanceBTC,vai, vaiInstance } = await deployVai();
         Comptroller = comptroller;
         vUSDT = vTokenInstanceUSDT;
         vUSDC = vTokenInstanceUSDC;
+        vBTC = vTokenInstanceBTC;
         VAI = vai;
         VaiInstance = vaiInstance;
         USDT = await ethers.getContractAt("BEP20Harness", await vUSDT.underlying());
         USDC = await ethers.getContractAt("BEP20Harness", await vUSDC.underlying());
+        WBTC = await ethers.getContractAt("BEP20Harness", await vBTC.underlying());
     });
+
     it("check Balance", async () => {
         const USDCBalance = await USDC.balanceOf(signer.address);
         const USDTBalance = await USDT.balanceOf(signer.address);
+        const WBTCBalance = await WBTC.balanceOf(signer.address);
         chai.expect(USDCBalance).to.be.equal(USDTBalance);
         chai.expect(USDCBalance).to.be.equal(BigInt(10) ** BigInt(25));
+        chai.expect(WBTCBalance).to.be.equal(BigInt(10) ** BigInt(20));
     });
 
 
