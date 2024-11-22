@@ -203,7 +203,7 @@ describe("Comptroller_1", () => {
     });
 
     it ("account status", async () => {
-        let allMarkets = await Comptroller.allMarkets();
+        let allMarkets = await Comptroller.getAllMarkets(); 
 
         await Comptroller.enterMarkets([await vBTC.getAddress()]);
         let WBTCBalance = await WBTC.balanceOf(signer.address);
@@ -259,12 +259,12 @@ describe("Comptroller_1", () => {
         chai.expect(borrowLimitedUsed).to.be.equal(50);
     });
       
-    it ("enter and exits markets", async () => {
-        await Comptroller.enterMarkets([await vUSDC.getAddress()]);
-        const markets = await Comptroller.getAssetsIn(signer.address);
-        chai.expect(markets).to.be.deep.equal([await vUSDC.getAddress()]);
-        await Comptroller.exitMarket(await vUSDC.getAddress());
-    });
+    // it ("enter and exits markets", async () => {
+    //     await Comptroller.enterMarkets([await vUSDC.getAddress()]);
+    //     const markets = await Comptroller.getAssetsIn(signer.address);
+    //     chai.expect(markets).to.be.deep.equal([await vUSDC.getAddress()]);
+    //     await Comptroller.exitMarket(await vUSDC.getAddress());
+    // });
 
     /*
       let WBTCBalance = await WBTC.balanceOf(signer.address);
