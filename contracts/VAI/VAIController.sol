@@ -816,6 +816,18 @@ contract VAIController is
         return rate;
     }
 
+    function getVAIMinterInterestIndex(
+        address minter
+    ) public view returns (uint256) {
+        uint256 storedIndex = vaiMinterInterestIndex[minter];
+        // If the user minted VAI before the stability fee was introduced, accrue
+        // starting from stability fee launch
+        if (storedIndex == 0) {
+            return 1e8;
+        }
+        return storedIndex;
+    }
+
     /**
      * @notice Get the current total VAI a user needs to repay
      * @param account The address of the VAI borrower
@@ -835,7 +847,7 @@ contract VAIController is
             "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
         );
 
-        (mErr, delta) = divUInt(delta, vaiMinterInterestIndex[account]);
+        (mErr, delta) = divUInt(delta, getVAIMinterInterestIndex(account));
         require(
             mErr == MathError.NO_ERROR,
             "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
@@ -1053,7 +1065,6 @@ contract VAIController is
     }
 
     function initialize() public onlyAdmin {
-        
         // Bug fixed.
         vaiMintIndex = 1e18;
         accrualBlockNumber = getBlockNumber();
