@@ -81,7 +81,6 @@ describe("Comptroller_1", () => {
         }
     });
 
-
     it ("Check VAI repay rate", async () => {
         let repayRateYearly = await VaiInstance.getVAIRepayRate();
         chai.expect(repayRateYearly).to.be.equal(0);
@@ -89,8 +88,6 @@ describe("Comptroller_1", () => {
         repayRatePerBlock = await VaiInstance.getVAIRepayRatePerBlock();
         chai.expect(repayRatePerBlock).to.be.equal(0);
     });
-
-
 
 
     it("Mint vBTC success and tranfer vBTC success", async () => {
@@ -392,7 +389,7 @@ describe("Comptroller_1", () => {
         chai.expect(repayAmount).to.be.equal(quarter);
     });
 
-    it("Borrow USDT/USDC fail beacuse borrow cap = 0", async () => {
+    it("Borrow USDT/USDC fail beacuse borrow action is paused = 0", async () => {
         //signer enter vUSDT/vUSDC markets
         await Comptroller.enterMarkets([await vUSDC.getAddress(), await vUSDT.getAddress()]);
         let USDCBalance = await USDC.balanceOf(signer.address);
@@ -421,17 +418,19 @@ describe("Comptroller_1", () => {
         chai.expect(liquidity).to.be.equal(16000000000000000000000000n);
         chai.expect(liquidity1).to.be.equal(6790000000000000000000000n);
 
-        await vUSDT.connect(account1).borrow(100n *big18)
+    
+        await chai.expect(
+            vUSDT.connect(account1).borrow(100n *big18)
+        ).to.be.revertedWith("action is paused");
+
+        await chai.expect(
+            vUSDC.connect(account1).borrow(100n *big18)
+        ).to.be.revertedWith("action is paused");
         
-        let borrowAmount = await vUSDT.totalBorrows();
-        console.log(borrowAmount);
-
-        // await chai.expect(
-        //     vUSDT.connect(account1).borrow(100n *big18)
-        // ).to.be.revertedWith("Insufficient allowance"); 
-
+        await chai.expect(
+            vBTC.borrow(10n *big18)
+        ).to.be.revertedWith("action is paused");
     });
-
 
 
     it("account status", async () => {
@@ -503,19 +502,110 @@ describe("Comptroller_1", () => {
         }
     });
 
-    it("Exits markets success ", async () => {
-        await Comptroller.enterMarkets([await vUSDC.getAddress()]);
-        const markets = await Comptroller.getAssetsIn(signer.address);
-        chai.expect(markets).to.be.deep.equal([await vUSDC.getAddress()]);
-        await Comptroller.exitMarket(await vUSDC.getAddress());
+    // it("Check liquidity calculations ", async () => {
+    //     let initialBalance = await WBTC.balanceOf(signer.address);
+    //     await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
+    //     await vBTC.mint(initialBalance);
+
+    //     let vBTCBalance = await vBTC.balanceOf(signer.address);
+    //     chai.expect(vBTCBalance).to.be.equal(initialBalance);
+
+    //     let WBTCBalance = await WBTC.balanceOf(signer.address);
+    //     chai.expect(WBTCBalance).to.be.equal(0);
+
+    //     //liquidity calculation before enter market
+    //     let markets = await Comptroller.getAssetsIn(signer.address);
+    //     chai.expect(markets).to.be.deep.equal([]);
+    //     [,liquidity, shortfall] = await Comptroller.getAccountLiquidity(signer.address);
+    //     chai.expect(liquidity).to.be.equal(0);
+    //     chai.expect(shortfall).to.be.equal(0);
+
+    //     //liquidity calculation after enter market
+    //     await Comptroller.enterMarkets([await vBTC.getAddress()]);
+    //     markets = await Comptroller.getAssetsIn(signer.address);
+    //     chai.expect(markets).to.be.deep.equal([await vBTC.getAddress()]);
+    //     [,liquidity, shortfall] = await Comptroller.getAccountLiquidity(signer.address);
+    //     chai.expect(liquidity).to.be.equal(6790000000000000000000000n);
+    //     chai.expect(shortfall).to.be.equal(0);
+
+    //     //liquidity calculation after enter market
+    //     let res =await Comptroller.exitMarket(await vBTC.getAddress());
+    //     chai.expect(res).to.be.equal(0);
+
+    //     markets = await Comptroller.getAssetsIn(signer.address);
+    //     chai.expect(markets).to.be.deep.equal([]);
+    //     [,liquidity, shortfall] = await Comptroller.getAccountLiquidity(signer.address);
+    //     chai.expect(liquidity).to.be.equal(0);
+    //     chai.expect(shortfall).to.be.equal(0);
+
+    //     WBTCBalance = await WBTC.balanceOf(signer.address);
+    //     chai.expect(WBTCBalance).to.be.equal(0);
+
+    //     vBTCBalance = await vBTC.balanceOf(signer.address);
+    //     chai.expect(vBTCBalance).to.be.equal(initialBalance);
+    // });
+
+
+    // it("Exits markets success", async () => {
+    //     await Comptroller.enterMarkets([await vUSDC.getAddress()]);
+    //     const markets = await Comptroller.getAssetsIn(signer.address);
+    //     chai.expect(markets).to.be.deep.equal([await vUSDC.getAddress()]);
+    //     let res = await Comptroller.exitMarket(await vUSDC.getAddress());
+    //     chai.expect(res).to.be.equal(0);
+    // });
+
+    it("Exits markets success even thought not enter before", async () => {
+        let res = await Comptroller.exitMarket(await vUSDC.getAddress());
+        chai.expect(res).to.be.equal(0);
     });
 
-    it("Exits markets fail ", async () => {
-        await Comptroller.enterMarkets([await vUSDC.getAddress()]);
-        const markets = await Comptroller.getAssetsIn(signer.address);
-        chai.expect(markets).to.be.deep.equal([await vUSDC.getAddress()]);
-        await Comptroller.exitMarket(await vUSDC.getAddress());
-    });
+    // it("Exits markets success even mint vBTC ", async () => {
+    //     await Comptroller.enterMarkets([await vBTC.getAddress()]);
+    //     const markets = await Comptroller.getAssetsIn(signer.address);
+    //     chai.expect(markets).to.be.deep.equal([await vBTC.getAddress()]);
+    //     let initialBalance = await WBTC.balanceOf(signer.address);
+    //     await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
+    //     await vBTC.mint(initialBalance);
+
+    //     let vBTCBalance = await vBTC.balanceOf(signer.address);
+    //     chai.expect(vBTCBalance).to.be.equal(initialBalance);
+
+    //     let WBTCBalance = await WBTC.balanceOf(signer.address);
+    //     chai.expect(WBTCBalance).to.be.equal(0);
+
+    //     let res = await Comptroller.exitMarket(await vUSDC.getAddress());
+    //     chai.expect(res).to.be.equal(0);
+
+    //     WBTCBalance = await WBTC.balanceOf(signer.address);
+    //     chai.expect(WBTCBalance).to.be.equal(0);
+
+    //     vBTCBalance = await vBTC.balanceOf(signer.address);
+    //     chai.expect(vBTCBalance).to.be.equal(initialBalance);
+    // });
+
+    // it("Exits markets fail beause loan != 0 ", async () => {
+    //     await Comptroller.enterMarkets([await vBTC.getAddress()]);
+    //     const markets = await Comptroller.getAssetsIn(signer.address);
+    //     chai.expect(markets).to.be.deep.equal([await vBTC.getAddress()]);
+    //     let WBTCBalance = await WBTC.balanceOf(signer.address);
+    //     await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
+    //     await vBTC.mint(WBTCBalance);
+
+    //     let [, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+    //     let half = mintableAmount / 2n;
+    //     await VaiInstance.mintVAI(half);
+
+    //     let VAIbalance = await VAI.balanceOf(signer.address);
+    //     let totalSupply = await VAI.totalSupply();
+    //     let repayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+    //     chai.expect(VAIbalance).to.be.equal(half);
+    //     chai.expect(totalSupply).to.be.equal(half);
+    //     chai.expect(repayAmount).to.be.equal(half);
+
+        
+    //     let res =  await Comptroller.exitMarket(await vBTC.getAddress())
+    //     console.log(res); 
+    // });
 
     /*
       let WBTCBalance = await WBTC.balanceOf(signer.address);

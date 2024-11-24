@@ -165,11 +165,13 @@ async function deployVToken() {
     await comptroller._setCollateralFactor(await vTokenInstanceBTC.getAddress(), big17 * 7n, { gasLimit: "0x1000000" });
 
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setMarketSupplyCaps(address[],uint256[])`, signer, { gasLimit: "0x1000000" });
-
+        
     await comptroller._setMarketSupplyCaps([await vTokenInstanceUSDT.getAddress(), await vTokenInstanceUSDC.getAddress(), await vTokenInstanceBTC.getAddress()], [BigInt(10) ** BigInt(25), BigInt(10) ** BigInt(25), ethers.MaxUint256], { gasLimit: "0x1000000" });
     // _setMarketBorrowCaps
-
-
+    
+    await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setActionsPaused(address[],uint256[],bool)`, signer, { gasLimit: "0x1000000" });
+    
+    await comptroller._setActionsPaused([await vTokenInstanceUSDT.getAddress(), await vTokenInstanceUSDC.getAddress(), await vTokenInstanceBTC.getAddress()], [2], true);    
     // console.log("price oracle deployed to:", await mockPriceOracleInstance.getAddress());
 
     // console.log("access control deployed to:", await accessControlInstance.getAddress());
