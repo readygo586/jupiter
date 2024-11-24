@@ -602,11 +602,10 @@ describe("Comptroller_1", () => {
         chai.expect(totalSupply).to.be.equal(half);
         chai.expect(repayAmount).to.be.equal(half);
 
+        // 模拟call, 无法修改状态 staticCall
+        const result = await Comptroller.exitMarket.staticCall(await vBTC.getAddress())
+        chai.expect(result).to.be.equal(14);
 
-        await Comptroller.exitMarket(await vBTC.getAddress())
-        let markets1 = await Comptroller.getAssetsIn(signer.address);
-        // 这里世纪没有退出成功的
-        chai.expect(markets1).to.be.deep.equal([await vBTC.getAddress()]);
     });
 
     /*
