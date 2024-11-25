@@ -176,12 +176,12 @@ async function deployVToken() {
 
     // console.log("access control deployed to:", await accessControlInstance.getAddress());
 
-    return { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, WBTC, vTokenInstanceBTC, comptroller };
+    return { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, WBTC, vTokenInstanceBTC, comptroller, mockPriceOracleInstance };
 }
 
 async function deployVai() {
     const [signer] = await ethers.getSigners();
-    const { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, WBTC, vTokenInstanceBTC, comptroller } = await deployVToken();
+    const { USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, WBTC, vTokenInstanceBTC, comptroller, mockPriceOracleInstance } = await deployVToken();
     const VAI = await ethers.getContractFactory("VAI");
     const vai = await VAI.deploy(network.config.chainId, { gasLimit: "0x1000000" });
     await vai.waitForDeployment();
@@ -218,7 +218,7 @@ async function deployVai() {
     // console.log("vBTC deployed to:", await vTokenInstanceBTC.getAddress());
 
     return {
-        USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, WBTC, vTokenInstanceBTC, comptroller, vai, vaiInstance
+        USDT, vTokenInstanceUSDT, USDC, vTokenInstanceUSDC, WBTC, vTokenInstanceBTC, comptroller, vai, vaiInstance, mockPriceOracleInstance
     }
 
 }
