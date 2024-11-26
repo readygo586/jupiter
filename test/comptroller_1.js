@@ -433,7 +433,64 @@ describe("Comptroller_1", () => {
         });
 
         it("repay VAI more than self minted", async () => {
-            //TODO
+            let WBTCBalance = await WBTC.balanceOf(signer.address);
+            await WBTC.transfer(account1.address, WBTCBalance);
+            let WBTCBalance1 = await WBTC.balanceOf(account1.address);
+            chai.expect(WBTCBalance1).to.be.equal(WBTCBalance);
+    
+            //signer enters usdc market and mint VAI
+            await Comptroller.enterMarkets([ await vUSDC.getAddress()]);
+            let USDCBalance = await USDC.balanceOf(signer.address);
+            await USDC.approve(await vUSDC.getAddress(), ethers.MaxUint256);
+            await vUSDC.mint(USDCBalance);
+            [,liquidity, ] = await Comptroller.getAccountLiquidity(signer.address);
+            chai.expect(liquidity).to.be.equal(8000000000000000000000000n);  // liqidity provided by vUSDC= 8000000000000000000000000n
+      
+            let mintAmount = liquidity;
+            await VaiInstance.mintVAI(mintAmount);
+            let VAIbalance = await VAI.balanceOf(signer.address);
+            let totalSupply = await VAI.totalSupply();
+            let repayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            chai.expect(VAIbalance).to.be.equal(mintAmount);
+            chai.expect(totalSupply).to.be.equal(mintAmount);
+            chai.expect(repayAmount).to.be.equal(mintAmount);
+    
+            //account1 enters BTC market and mint VAI
+            await Comptroller.connect(account1).enterMarkets([ await vBTC.getAddress()]);
+            await WBTC.connect(account1).approve(await vBTC.getAddress(), ethers.MaxUint256);
+            await vBTC.connect(account1).mint(WBTCBalance);
+            [,liquidity1, shortfall1] = await Comptroller.getAccountLiquidity(account1.address);
+            chai.expect(liquidity1).to.be.equal(6790000000000000000000000n);  // liqidity provided by vUSDC= 8000000000000000000000000n
+            chai.expect(shortfall1).to.be.equal(0);
+    
+            let mintAmount1 = liquidity1;
+            await VaiInstance.connect(account1).mintVAI(mintAmount1);
+            let VAIbalance1Before = await VAI.balanceOf(account1.address);
+            totalSupply = await VAI.totalSupply();
+            let repayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
+            chai.expect(VAIbalance1Before).to.be.equal(mintAmount1);
+            chai.expect(totalSupply).to.be.equal(mintAmount1 + mintAmount);
+            chai.expect(repayAmount1).to.be.equal(mintAmount1);
+            
+            //signer transfer 1e^-18 vai to account1
+            await VAI.transfer(account1.address, 1n);
+            let VAIbalance1After = await VAI.balanceOf(account1.address);
+            totalSupply = await VAI.totalSupply();
+            repayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
+            chai.expect(VAIbalance1After).to.be.equal(mintAmount1+1n);
+            chai.expect(totalSupply).to.be.equal(mintAmount1 + mintAmount);
+            chai.expect(repayAmount1).to.be.equal(mintAmount1);
+
+            //account1 repay 1e^-18 vai 
+            await VAI.connect(account1).approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+            await VaiInstance.connect(account1).repayVAI(VAIbalance1After);
+
+            VAIbalance1After = await VAI.balanceOf(account1.address);
+            totalSupply = await VAI.totalSupply();
+            repayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
+            chai.expect(VAIbalance1After).to.be.equal(1n);
+            chai.expect(totalSupply).to.be.equal(mintAmount);
+            chai.expect(repayAmount1).to.be.equal(0);
 
         });
     });
@@ -762,7 +819,6 @@ describe("Comptroller_1", () => {
             }
         });
     
-       
     
         it("Enter and Exits markets success, no vToken mint", async () => {
             let allMarkets = await Comptroller.getAllMarkets();
