@@ -81,7 +81,7 @@ describe("Comptroller", () => {
     });
     it("Mint Vai again", async () => {
         await VaiInstance.mintVAI(BigInt(60) * BigInt(10) ** BigInt(18));
-        chai.expect(await VAI.balanceOf(signer.address)).to.be.equal(BigInt(100) * BigInt(10) ** BigInt(18));
+        chai.expect(await VAI.balanceOf(signer.address)).to.be.equal(BigInt(160) * BigInt(10) ** BigInt(18));
     });
 
 })
