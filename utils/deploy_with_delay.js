@@ -1,6 +1,7 @@
 const { ethers, network } = require("hardhat");
 const big17 = BigInt(10) ** BigInt(17);
 const big18 = BigInt(10) ** BigInt(18);
+const big16 = BigInt(10) ** BigInt(16);
 async function deployComptroller() {
     const [signer] = await ethers.getSigners();
     const UnitrollerFactory = await ethers.getContractFactory("Unitroller");
@@ -45,10 +46,10 @@ async function deployComptroller() {
     await comptroller._setCloseFactor(big17 * (5n), { gasLimit: "0x1000000" });
     await sleep(5000);
 
-    // Set liquidation incentive to 0%
+    // Set liquidation incentive to 105%
     await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setLiquidationIncentive(uint256)`, signer, { gasLimit: "0x1000000" });
     await sleep(5000);
-    await comptroller._setLiquidationIncentive(big18, { gasLimit: "0x1000000" });
+    await comptroller._setLiquidationIncentive((big18 + big16 * 5n), { gasLimit: "0x1000000" });
     await sleep(5000);
 
 
