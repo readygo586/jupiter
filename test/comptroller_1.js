@@ -431,6 +431,11 @@ describe("Comptroller_1", () => {
             chai.expect(totalSupply).to.be.equal(0);
             chai.expect(repayAmount).to.be.equal(0);
         });
+
+        it("repay VAI more than self minted", async () => {
+            //TODO
+
+        });
     });
 
     describe("Borrow token", () => {
@@ -950,8 +955,6 @@ describe("Comptroller_1", () => {
     });
 
     describe("liquidate", async() =>{
-        let shortfall;
-
         beforeEach(async function () {
             let WBTCBalance = await WBTC.balanceOf(signer.address);
             await WBTC.transfer(account1.address, WBTCBalance);
@@ -990,93 +993,260 @@ describe("Comptroller_1", () => {
             let repayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
             chai.expect(VAIbalance1).to.be.equal(mintAmount1);
             chai.expect(totalSupply).to.be.equal(mintAmount1 + mintAmount);
-            console.log("before liquidation, VAI total supply", totalSupply);
             chai.expect(repayAmount1).to.be.equal(mintAmount1);
     
             //BTC price down to 60000
             await oracle.setUnderlyingPrice(await vBTC.getAddress(), BigInt(60000) * BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
-          
-            //calculate account liquidity 
-            [,liquidity1, shortfall1] = await Comptroller.getAccountLiquidity(account1.address);
-            chai.expect(liquidity1).to.be.equal(0);  
-            chai.expect(shortfall1).to.be.equal(2590000000000000000000000n);  
-            shortfall = shortfall1;
         });
 
         it("liquidate exact closeFactor", async () => {
+            let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+
             //signer liquidate account1's loan
             let closeFactor = await Comptroller.closeFactorMantissa();
             chai.expect(closeFactor).to.be.equal(5n *big17);
-            liquiditionAmount = shortfall * closeFactor / big18;
-            chai.expect(liquiditionAmount).to.be.equal(1295000000000000000000000n);
+            liquiditionAmount = repayAmount1Before * closeFactor / big18;
+            chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000000n);
              
             [res, seizedAmount] = await Comptroller.liquidateVAICalculateSeizeTokens(await vBTC.getAddress(), liquiditionAmount);
             chai.expect(res).to.be.equal(0);
-            chai.expect(seizedAmount).to.be.equal(22662500000000000000n);
+            chai.expect(seizedAmount).to.be.equal(59412500000000000000n);
             
-            vBTCBalance = await vBTC.balanceOf(signer.address);
-            chai.expect(vBTCBalance).to.be.equal(0);
+            //signer assets before liquidation
+            vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
+            chai.expect(vBTCBalanceBefore).to.be.equal(0);
+            VAIBalanceBefore = await VAI.balanceOf(signer.address);
+            chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
 
-            VAIBalance = await VAI.balanceOf(signer.address);
-            chai.expect(VAIBalance).to.be.equal(8000000000000000000000000n);
+            //account assets before liquidation
+            vBTCBalance1Before = await vBTC.balanceOf(account1.address);
+            chai.expect(vBTCBalance1Before).to.be.equal(100000000000000000000n);
+            VAIBalance1Before = await VAI.balanceOf(account1.address);
+            chai.expect(VAIBalance1Before).to.be.equal(6790000000000000000000000n);
+            
+            let totalSupplyBefore = await VAI.totalSupply();
 
-            VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
-            // await chai.expect(VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress())
+            let mintedVAIAmount1Before = await Comptroller.mintedVAIs(account1.address);
+            chai.expect(mintedVAIAmount1Before).to.be.equal(repayAmount1Before);
+            chai.expect(mintedVAIAmount1Before).to.be.equal(VAIBalance1Before);
+        
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
             await chai.expect(
                 VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress())
             ).to.emit(VaiInstance, "LiquidateVAI");
 
-            [,liquidity1, shortfall1] = await Comptroller.getAccountLiquidity(account1.address);
-            chai.expect(liquidity1).to.be.equal(0);  // liqidity provided by vUSDC= 8000000000000000000000000n
-            // chai.expect(shortfall1).to.be.equal(1295000000000000000000000n);  
+            //signer‘s asset after liquiation， pay 3395000 VAI, seized 59.4125 BTC
+            vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+            VAIBalanceAfter = await VAI.balanceOf(signer.address);
+            chai.expect(vBTCBalanceAfter).to.be.equal(seizedAmount);
+            chai.expect(VAIBalanceBefore - VAIBalanceAfter).to.be.equal(liquiditionAmount);
+            
+            //account1's asset after liquidation, lost 59.4125 BTC
+            let vBTCBalance1After = await vBTC.balanceOf(account1.address);
+            let VAIBalance1After = await VAI.balanceOf(account1.address);
+            chai.expect(vBTCBalance1Before - vBTCBalance1After).to.be.equal(seizedAmount);
+            chai.expect(VAIBalance1After).to.be.equal(VAIBalance1Before);
+          
+            let totalSupplyAfter = await VAI.totalSupply();
+            chai.expect(totalSupplyBefore - totalSupplyAfter).to.be.equal(liquiditionAmount);
 
-            vBTCBalance = await vBTC.balanceOf(signer.address);
-            VAIBalance = await VAI.balanceOf(signer.address);
-            // chai.expect(VAIBalance).to.be.equal(8000000000000000000000000n - liquiditionAmount);
-            console.log("after liquidate, liquidator's vBTCBalance", "VAIBalance", vBTCBalance, VAIBalance);
+            let mintedVAIAmount1After = await Comptroller.mintedVAIs(account1.address);
+            let repayAmount1After = await VaiInstance.getVAIRepayAmount(account1.address);
+            chai.expect(mintedVAIAmount1After).to.be.equal(repayAmount1After);
+            chai.expect(mintedVAIAmount1Before - mintedVAIAmount1After).to.be.equal(liquiditionAmount);
+          
 
-            let vBTCBalance1 = await vBTC.balanceOf(account1.address);
-            let VAIBalance1 = await VAI.balanceOf(account1.address)
-            console.log("after liquidate, borrower's vBTCBalance", "VAIBalance", vBTCBalance1, VAIBalance1);
-
-            let totalSupply = await VAI.totalSupply();
-            console.log("after liquidate, vai total supply", totalSupply)
-
+            [,,shortfall1After] = await Comptroller.getAccountLiquidity(account1.address);
+            let exchangeRate = await vBTC.exchangeRateStored();
+            let price = await oracle.getUnderlyingPrice(await vBTC.getAddress());
+            [, collateralFactor,] = await Comptroller.markets(await vBTC.getAddress());
+            let supply1After =  vBTCBalance1After * exchangeRate * price * collateralFactor /(big18**BigInt(3));
+            let calculatedShorfall =  repayAmount1After - supply1After;
+            chai.expect(calculatedShorfall).to.be.equal(shortfall1After)
         });
 
-        it("liquidate more than closeFactor", async () => {
 
-            liquiditionAmount = shortfall1*6;
-            chai.expect(liquiditionAmount).to.be.equal(2590000000000000000000000n);
-            
-            VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+        it("liquidate more than closeFactor", async () => {
+            let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+
+            //signer liquidate account1's loan
+            let closeFactor = await Comptroller.closeFactorMantissa();
+            chai.expect(closeFactor).to.be.equal(5n *big17);
+            liquiditionAmount = repayAmount1Before * closeFactor / big18 + 1n; 
+            chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000001n);
+    
+            vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
+            chai.expect(vBTCBalanceBefore).to.be.equal(0);
+            VAIBalanceBefore = await VAI.balanceOf(signer.address);
+            chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
+
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
             await VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress());
 
-            [,liquidity1, shortfall1] = await Comptroller.getAccountLiquidity(account1.address);
-            chai.expect(liquidity1).to.be.equal(0);  // liqidity provided by vUSDC= 8000000000000000000000000n
-            chai.expect(shortfall1).to.be.equal(2590000000000000000000000n);  
-            //1903650000000000001694000
-            //2590000000000000000000000
+            [,liquidity1After, shortfall1After] = await Comptroller.getAccountLiquidity(account1.address);
+            chai.expect(liquidity1After).to.be.equal(0);  // liqidity provided by vUSDC= 8000000000000000000000000n
+            chai.expect(shortfall1After).to.be.equal(2590000000000000000000000n);  
+
+            let vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+            chai.expect(vBTCBalanceAfter).to.be.equal(vBTCBalanceBefore);
+            let VAIBalanceAfter = await VAI.balanceOf(signer.address);
+            chai.expect(VAIBalanceAfter).to.be.equal(VAIBalanceBefore);
         });
 
         it("liquidate less than closeFactor", async () => {
-            //TODO
+            let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+
+            //signer liquidate account1's loan
+            let closeFactor = await Comptroller.closeFactorMantissa();
+            chai.expect(closeFactor).to.be.equal(5n *big17);
+            liquiditionAmount = repayAmount1Before * closeFactor / big18 - 1n;
+            chai.expect(liquiditionAmount).to.be.equal(3394999999999999999999999n);
+             
+            [res, seizedAmount] = await Comptroller.liquidateVAICalculateSeizeTokens(await vBTC.getAddress(), liquiditionAmount);
+            chai.expect(res).to.be.equal(0);
+            chai.expect(seizedAmount).to.be.equal(59412499999999999999n);
+            
+            //signer assets before liquidation
+            vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
+            chai.expect(vBTCBalanceBefore).to.be.equal(0);
+            VAIBalanceBefore = await VAI.balanceOf(signer.address);
+            chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
+
+            //account assets before liquidation
+            vBTCBalance1Before = await vBTC.balanceOf(account1.address);
+            chai.expect(vBTCBalance1Before).to.be.equal(100000000000000000000n);
+            VAIBalance1Before = await VAI.balanceOf(account1.address);
+            chai.expect(VAIBalance1Before).to.be.equal(6790000000000000000000000n);
+            
+            let totalSupplyBefore = await VAI.totalSupply();
+
+            let mintedVAIAmount1Before = await Comptroller.mintedVAIs(account1.address);
+            chai.expect(mintedVAIAmount1Before).to.be.equal(repayAmount1Before);
+            chai.expect(mintedVAIAmount1Before).to.be.equal(VAIBalance1Before);
+        
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+            await chai.expect(
+                VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress())
+            ).to.emit(VaiInstance, "LiquidateVAI");
+
+            //signer‘s asset after liquiation， pay 3395000 VAI, seized 59.4125 BTC
+            vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+            VAIBalanceAfter = await VAI.balanceOf(signer.address);
+            chai.expect(vBTCBalanceAfter).to.be.within(seizedAmount-1000n, seizedAmount+1000n);
+            chai.expect(VAIBalanceBefore - VAIBalanceAfter).to.be.within(liquiditionAmount-10000000n, liquiditionAmount+10000000n);
+            
+            //account1's asset after liquidation, lost 59.4125 BTC
+            let vBTCBalance1After = await vBTC.balanceOf(account1.address);
+            let VAIBalance1After = await VAI.balanceOf(account1.address);
+            chai.expect(vBTCBalance1Before - vBTCBalance1After).to.be.within(seizedAmount-1000n, seizedAmount+1000n);
+            chai.expect(VAIBalance1After).to.be.equal(VAIBalance1Before);
+          
+            let totalSupplyAfter = await VAI.totalSupply();
+            chai.expect(totalSupplyBefore - totalSupplyAfter).to.be.within(liquiditionAmount-10000000n, liquiditionAmount+10000000n);
+
+            let mintedVAIAmount1After = await Comptroller.mintedVAIs(account1.address);
+            let repayAmount1After = await VaiInstance.getVAIRepayAmount(account1.address);
+            chai.expect(mintedVAIAmount1After).to.be.equal(repayAmount1After);
+            chai.expect(mintedVAIAmount1Before - mintedVAIAmount1After).to.be.within(liquiditionAmount-10000000n, liquiditionAmount+10000000n);
+          
+
+            [,,shortfall1After] = await Comptroller.getAccountLiquidity(account1.address);
+            let exchangeRate = await vBTC.exchangeRateStored();
+            let price = await oracle.getUnderlyingPrice(await vBTC.getAddress());
+            [, collateralFactor,] = await Comptroller.markets(await vBTC.getAddress());
+            let supply1After =  vBTCBalance1After * exchangeRate * price * collateralFactor /(big18**BigInt(3));
+            let calculatedShorfall =  repayAmount1After - supply1After;
+            chai.expect(calculatedShorfall).to.be.equal(shortfall1After)
         });
 
         it("liquidation amount change when incensitive change", async () => {
-            //TODO
+            let repayAmount = await VaiInstance.getVAIRepayAmount(account1.address);
+
+            //calculate seizedAmount 
+            let closeFactor = await Comptroller.closeFactorMantissa();
+            chai.expect(closeFactor).to.be.equal(5n *big17);
+            liquiditionAmount = repayAmount * closeFactor / big18;
+            chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000000n);
+             
+            [res, seizedAmount] = await Comptroller.liquidateVAICalculateSeizeTokens(await vBTC.getAddress(), liquiditionAmount);
+            chai.expect(res).to.be.equal(0);
+            chai.expect(seizedAmount).to.be.equal(59412500000000000000n);
+
+            //new incentive = 110%
+            await Comptroller._setLiquidationIncentive((big18 + big16*10n), { gasLimit: "0x1000000" });
+
+            [res, seizedAmount] = await Comptroller.liquidateVAICalculateSeizeTokens(await vBTC.getAddress(), liquiditionAmount);
+            chai.expect(res).to.be.equal(0);
+            chai.expect(seizedAmount).to.be.equal(62241666666665535000n);
         });
 
         it("liquidate fail beacuse liquidator = borrower", async () => {
-            //TODO
+            let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+             //signer liquidate account1's loan
+             let closeFactor = await Comptroller.closeFactorMantissa();
+             chai.expect(closeFactor).to.be.equal(5n *big17);
+             liquiditionAmount = repayAmount1Before * closeFactor / big18; 
+             chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000000n);
+     
+             vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
+             chai.expect(vBTCBalanceBefore).to.be.equal(0);
+             VAIBalanceBefore = await VAI.balanceOf(signer.address);
+             chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
+ 
+             await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+             await VaiInstance.connect(account1).liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress());
+ 
+             [,liquidity1After, shortfall1After] = await Comptroller.getAccountLiquidity(account1.address);
+             chai.expect(liquidity1After).to.be.equal(0);  // liqidity provided by vUSDC= 8000000000000000000000000n
+             chai.expect(shortfall1After).to.be.equal(2590000000000000000000000n);  
+ 
+             let vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+             chai.expect(vBTCBalanceAfter).to.be.equal(vBTCBalanceBefore);
+             let VAIBalanceAfter = await VAI.balanceOf(signer.address);
+             chai.expect(VAIBalanceAfter).to.be.equal(VAIBalanceBefore);
         });
 
         it("liquidate fail beacuse liquidation amount = 0", async () => {
-            //TODO
+              //signer liquidate account1's loan
+              liquiditionAmount = 0n 
+       
+              vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
+              chai.expect(vBTCBalanceBefore).to.be.equal(0);
+              VAIBalanceBefore = await VAI.balanceOf(signer.address);
+              chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
+  
+              await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+              await VaiInstance.connect(account1).liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress());
+  
+              [,liquidity1After, shortfall1After] = await Comptroller.getAccountLiquidity(account1.address);
+              chai.expect(liquidity1After).to.be.equal(0);  // liqidity provided by vUSDC= 8000000000000000000000000n
+              chai.expect(shortfall1After).to.be.equal(2590000000000000000000000n);  
+  
+              let vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+              chai.expect(vBTCBalanceAfter).to.be.equal(vBTCBalanceBefore);
+              let VAIBalanceAfter = await VAI.balanceOf(signer.address);
+              chai.expect(VAIBalanceAfter).to.be.equal(VAIBalanceBefore);
         });
 
         it("liquidate fail beacuse liquidation amount = uint256(-1)", async () => {
-            //TODO
+            liquiditionAmount = ethers.MaxUint256;
+       
+            vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
+            chai.expect(vBTCBalanceBefore).to.be.equal(0);
+            VAIBalanceBefore = await VAI.balanceOf(signer.address);
+            chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
+
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+            await VaiInstance.connect(account1).liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress());
+
+            [,liquidity1After, shortfall1After] = await Comptroller.getAccountLiquidity(account1.address);
+            chai.expect(liquidity1After).to.be.equal(0);  // liqidity provided by vUSDC= 8000000000000000000000000n
+            chai.expect(shortfall1After).to.be.equal(2590000000000000000000000n);  
+
+            let vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+            chai.expect(vBTCBalanceAfter).to.be.equal(vBTCBalanceBefore);
+            let VAIBalanceAfter = await VAI.balanceOf(signer.address);
+            chai.expect(VAIBalanceAfter).to.be.equal(VAIBalanceBefore);
         });
 
     });
