@@ -8,6 +8,7 @@ const { int } = require("hardhat/internal/core/params/argumentTypes");
 
 
 
+
 describe("Comptroller_1", () => {
 
     let Comptroller, vUSDT, vUSDC, vBTC, USDT, USDC, WBTC, VAI, VaiInstance, oracle;
@@ -30,6 +31,7 @@ describe("Comptroller_1", () => {
         USDC = await ethers.getContractAt("BEP20Harness", await vUSDC.underlying());
         WBTC = await ethers.getContractAt("BEP20Harness", await vBTC.underlying());
     });
+
 
     describe("init check", () => {
         it("Check vBTC/WBTC name and symbol", async () => {
@@ -152,6 +154,7 @@ describe("Comptroller_1", () => {
             let borrowAmount = await vBTC.totalBorrows();
             let exchangeRate = await vBTC.exchangeRateStored();
             let reserveAmount = await vBTC.totalReserves();
+
             chai.expect(vTotalSupply).to.be.equal(0);
             chai.expect(exchangeRate).to.be.equal(big18); //exchangeRate is 
             chai.expect(cashAmount).to.be.equal(0);
@@ -587,7 +590,6 @@ describe("Comptroller_1", () => {
                 }
             }
             // console.log("membership", membership);
-    
             //用户借出的VAI 
             let VAIbalance = await VAI.balanceOf(signer.address);
             chai.expect(VAIbalance).to.be.equal(half);
@@ -1304,6 +1306,5 @@ describe("Comptroller_1", () => {
             let VAIBalanceAfter = await VAI.balanceOf(signer.address);
             chai.expect(VAIBalanceAfter).to.be.equal(VAIBalanceBefore);
         });
-
     });
 })
