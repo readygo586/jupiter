@@ -362,6 +362,41 @@ describe("Comptroller_1", () => {
 
 
     describe("mint and repay VAI", () => {
+        it("get repayAmount and mintableAmount before enter market and after exit market", async () => {
+            let WBTCBalance = await WBTC.balanceOf(signer.address);
+            await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
+            await vBTC.mint(WBTCBalance);
+
+            let repayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            chai.expect(repayAmount).to.be.equal(0);
+            let [, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+            chai.expect(mintableAmount).to.be.equal(0);
+
+            //enter markets and get repayAmount and mintableAmount again
+            await Comptroller.enterMarkets([await vBTC.getAddress()]);
+            repayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            chai.expect(repayAmount).to.be.equal(0);
+            [, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+            chai.expect(mintableAmount).to.be.not.equal(0);
+
+            let half = mintableAmount / 2n;
+            await VaiInstance.mintVAI(half);
+
+            repayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            chai.expect(repayAmount).to.be.equal(half);
+
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+            await VaiInstance.repayVAI(repayAmount);
+
+            repayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            chai.expect(repayAmount).to.be.equal(0);
+
+            await Comptroller.exitMarket(await vBTC.getAddress());
+
+            markets = await Comptroller.getAssetsIn(signer.address);
+            chai.expect(markets.length).to.be.equal(0);
+        });
+
         it("mint and repay VAI", async () => {
             await Comptroller.enterMarkets([await vBTC.getAddress()]);
             const markets = await Comptroller.getAssetsIn(signer.address);
