@@ -1,30 +1,38 @@
 const { ethers } = require("hardhat");
 async function main() {
-
-    const VAI = await ethers.getContractFactory("VAIController");
+    const [signer] = await ethers.getSigners();
+    const VAIController = await ethers.getContractFactory("VAIController");
     const vToken = await ethers.getContractFactory("VBep20Delegator");
-    const vUSDC = vToken.attach("0x8140143BCa70b64e5981EaC090cF2f2Ac1E8A221");
-    const vUSDT = vToken.attach("0x2abf1CF8C5D6a24E765AcB383f78831B5C866E99");
-    const vai = VAI.attach("0x348e334a6253EfC2a12428F180c0861382d5e1C3");
-    const comptroller = await ethers.getContractAt("Comptroller", "0x5D1a68c4b37727E21d920211903C4d89CD1ea815");
-    console.log("USDT Address:", await vUSDT.underlying());
-    console.log("USDC Address:", await vUSDC.underlying());
+    const vBTC = vToken.attach("0x2E9E2E7233EB78f95CbCb991377A1212309B9acc");
+    const vETH = vToken.attach("0x0F4813F10d42924C7085DC324B88235eC914dA16");
+    const vai = await vToken.attach("0xaa46Fe4fc775A51117808b85f7b5D974040cdE0e");
+    const vaiController = VAIController.attach("0xe30a831334D0e70AFd18b63E3f4B6494f23119Ae");
+    const comptroller = await ethers.getContractAt("Comptroller", "0xC13957049cd4560825bf76310D97BC5b2793B7DC");
+    console.log("BTC Address:", await vBTC.underlying());
+    console.log("ETH Address:", await vETH.underlying());
 
-    const USDT = await ethers.getContractAt("BEP20Harness", await vUSDT.underlying());
-    const USDC = await ethers.getContractAt("BEP20Harness", await vUSDC.underlying());
+    const BTC = await ethers.getContractAt("BEP20Harness", await vBTC.underlying());
+    const ETH = await ethers.getContractAt("BEP20Harness", await vETH.underlying());
 
-    await sleep(5000);
-    // await USDT.approve(await vUSDT.getAddress(), BigInt(10) ** BigInt(25), { gasLimit: "0x1000000" });
-    // await sleep(5000);
-    // await USDC.approve(await vUSDC.getAddress(), BigInt(10) ** BigInt(25), { gasLimit: "0x1000000" });
-    // await sleep(5000);
-    // await vUSDT.mint(BigInt(100) * BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
-    // await sleep(5000);
-    // await vUSDC.mint(BigInt(100) * BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
-    // await sleep(5000);
-    // await comptroller.enterMarkets([await vUSDT.getAddress(), await vUSDC.getAddress()], { gasLimit: "0x1000000" });
-    // await sleep(5000);
-    await vai.mintVAI(BigInt(100) * BigInt(10) ** BigInt(18), { gasLimit: "0x1000000" });
+    await BTC.approve(await vBTC.getAddress(), BigInt(10) ** BigInt(25));
+    await vBTC.mint(BigInt(1) ** BigInt(8));
+    await sleep(30000);
+    await ETH.approve(await vETH.getAddress(), BigInt(10) ** BigInt(25));
+    await sleep(30000);
+    await vETH.mint(BigInt(1) ** BigInt(18));
+    await sleep(30000);
+    await comptroller.enterMarkets([await vBTC.getAddress(), await vETH.getAddress()]);
+    await sleep(30000);
+    const result = await vaiController.mintVAI(BigInt(100) * BigInt(10) ** BigInt(18));
+    console.log("Mint VAI:", result);
+    await sleep(30000);
+    const balanceVBTC = await vBTC.balanceOf(signer);
+    const balanceVETH = await vETH.balanceOf(signer);
+    const balanceVAI = await vai.balanceOf(signer);
+    console.log("Balance vBTC:", balanceVBTC.toString());
+    console.log("Balance vETH:", balanceVETH.toString());
+    console.log("Balance VAI:", balanceVAI.toString());
+
 }
 main().catch(console.error);
 
