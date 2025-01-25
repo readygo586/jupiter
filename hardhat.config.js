@@ -30,6 +30,11 @@ module.exports = {
       chainId: 97,
       accounts: [`329d45df2086825022b2b648fc39ebc4f3edaa0dac7612af86b923f57fd6e26c`],
       gas: 10000000,
+    },
+    DT_testnet: {
+      url: "http://13.212.23.35:6979",
+      chainId: 10086,
+      accounts: [`329d45df2086825022b2b648fc39ebc4f3edaa0dac7612af86b923f57fd6e26c`],
     }
   }
 };

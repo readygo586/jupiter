@@ -30,8 +30,8 @@ contract VAI is LibNote {
     }
 
     // --- BEP20 Data ---
-    string  public constant name     = "VAI Stablecoin";
-    string  public constant symbol   = "VAI";
+    string  public constant name     = "dtUSDT";
+    string  public constant symbol   = "dtUSDT";
     string  public constant version  = "1";
     uint8   public constant decimals = 18;
     uint256 public totalSupply;

@@ -1,4 +1,4 @@
-const { deployComptroller, deployVToken, deployVai } = require("../utils/deploy_with_delay");
+const { deployComptroller, deployVToken, deployVai } = require("../utils/deploy_with_DChain");
 
 
 async function main() {
