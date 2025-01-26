@@ -44,7 +44,7 @@ contract Oracle is PriceOracle {
         (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) = UnderlyingTokenOracle(feeder[vToken]).latestRoundData();
 
         require(answer > 0, "negative answer");
-        if(feeder[vToken] == 0x2Dd9A1733331E34BBb496d15Ac44D8347Ef41dd4){
+        if(feeder[vToken] == 0x33deb1bCDCC9ecc2056F87A20CFF3dcBd54a37f6){ //0x33deb1bCDCC9ecc2056F87A20CFF3dcBd54a37f6 bsc testnet
             return uint(answer) * 1e10;
         }
         return uint(answer);
