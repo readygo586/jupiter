@@ -102,8 +102,8 @@ describe("Comptroller_1", () => {
     // })
 
 
-    // describe("mint/tranfer/redeem vBTC  ", () => {
-    //     it("Mint vBTC success and tranfer vBTC success", async () => {
+    // describe("mint/transfer/redeem vBTC  ", () => {
+    //     it("Mint vBTC success and transfer vBTC success", async () => {
     //         let WBTCBalance = await WBTC.balanceOf(signer.address);
     //         await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
     //         await vBTC.mint(WBTCBalance);
@@ -134,7 +134,7 @@ describe("Comptroller_1", () => {
     //         chai.expect(vBTCBalance).to.be.equal(WBTCBalance - big18 - BigInt(2) * big18);
     //     });
 
-    //     it("Mint vBTC fail beacause of insufficient balance ", async () => {
+    //     it("Mint vBTC fail because of insufficient balance ", async () => {
     //         let WBTCBalance = await WBTC.balanceOf(signer.address);
     //         await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
     //         await chai.expect(
@@ -159,7 +159,7 @@ describe("Comptroller_1", () => {
     //         chai.expect(vTotalSupply * exchangeRate / big18).to.be.equal(cashAmount + borrowAmount - reserveAmount);
     //     });
 
-    //     it("Mint vBTC fail beacause of not approve ", async () => {
+    //     it("Mint vBTC fail because of not approve ", async () => {
     //         let WBTCBalance = await WBTC.balanceOf(signer.address);
     //         await chai.expect(
     //             vBTC.mint(big18)
