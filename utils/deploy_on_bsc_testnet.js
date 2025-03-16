@@ -10,7 +10,7 @@ let ETHAddress = `0x4354230038d0C3120B8756f1AbA72E9F4FC94979`
 let BTCFeeder = `0x33deb1bCDCC9ecc2056F87A20CFF3dcBd54a37f6`
 let ETHFeeder = `0x11ffA6965b4c25790980897241100dA23b87C7f2`
 
-const delay = 5000;
+const delay = 2000;
 const needDeployToken = false;
 const needDeployPriceOracle = false;
 const needConsoleLog = true;
@@ -26,11 +26,14 @@ async function deployComptroller() {
     const _comptroller = await ComptrollerFactory.deploy();
     await _comptroller.waitForDeployment();
     await sleep(delay);
-    if (needConsoleLog) { console.log("Comptroller deployed to:", await _comptroller.getAddress()); }
-    await unitroller._setPendingImplementation(await _comptroller.getAddress());
+    let comptrollerAddress= await _comptroller.getAddress();
+    if (needConsoleLog) { console.log("Comptroller deployed to:", comptrollerAddress); }
+    await unitroller._setPendingImplementation(comptrollerAddress);
     await sleep(delay);
 
-    await _comptroller._become(await unitroller.getAddress());
+    let unitrollerAddress = await unitroller.getAddress();
+    await sleep(delay);
+    await _comptroller._become(unitrollerAddress);
     await sleep(delay);
 
     const comptroller = await ethers.getContractAt("Comptroller", await unitroller.getAddress());
@@ -196,20 +199,20 @@ async function deployVai() {
     await vaiComptroller.waitForDeployment();
     await sleep(delay);
 
-    await vaiUnitroller._setPendingImplementation(await vaiComptroller.getAddress());
+    await vaiUnitroller._setPendingImplementation(await vaiComptroller.getAddress(),  { gasLimit: "0x1000000" });
     await sleep(delay);
-    await vaiComptroller._become(await vaiUnitroller.getAddress());
+    await vaiComptroller._become(await vaiUnitroller.getAddress(),  { gasLimit: "0x1000000" });
 
 
     const vaiInstance = await ethers.getContractAt("VAIController", await vaiUnitroller.getAddress());
     await sleep(delay);
-    await vaiInstance._setComptroller(await comptroller.getAddress());
+    await vaiInstance._setComptroller(await comptroller.getAddress(), { gasLimit: "0x1000000" });
     await sleep(delay);
-    await vaiInstance.setVAIAddress(await vai.getAddress());
+    await vaiInstance.setVAIAddress(await vai.getAddress(),  { gasLimit: "0x1000000" });
     await sleep(delay);
     await vaiInstance.initialize();
     await sleep(delay);
-    await comptroller._setVAIController(await vaiInstance.getAddress());
+    await comptroller._setVAIController(await vaiInstance.getAddress(),  { gasLimit: "0x1000000" });
     await sleep(delay);
     await comptroller._setVAIMintRate(10000);
     await sleep(delay);

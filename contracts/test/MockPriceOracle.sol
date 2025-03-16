@@ -18,7 +18,7 @@ contract SimplePriceOracle is PriceOracle {
         } else if (compareStrings(VBep20(vToken).symbol(), "VAI")) {
             return prices[address(vToken)];
         } else if (compareStrings(VBep20(vToken).symbol(), "vBTC")) {
-            return prices[address(VBep20(vToken).underlying())] * 1e10;
+            return prices[address(VBep20(vToken).underlying())] ; //* 1e10;
         } else {
             return prices[address(VBep20(vToken).underlying())];
         }
