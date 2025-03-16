@@ -115,7 +115,12 @@ contract VAIController is
         uint accountMintableVAI;
     }
 
-    function mintVAI(uint mintVAIAmount) external nonReentrant returns (uint) {
+    //wrap of mintVAI
+    function mintSAI( uint mintSAIAmount) external returns (uint) {
+        return mintVAI(mintSAIAmount);
+    }
+
+    function mintVAI(uint mintVAIAmount) public nonReentrant returns (uint) {
         if (address(comptroller) != address(0)) {
             require(mintVAIAmount > 0, "mintVAIAmount cannt be zero");
             require(
@@ -267,11 +272,20 @@ contract VAIController is
     }
 
     /**
+     * @notice Repay SAI
+     */
+    function repaySAI(
+        uint repaySAIAmount
+    ) external returns (uint, uint) {
+        return repayVAI(repaySAIAmount);
+    }
+
+    /**
      * @notice Repay VAI
      */
     function repayVAI(
         uint repayVAIAmount
-    ) external nonReentrant returns (uint, uint) {
+    ) public nonReentrant returns (uint, uint) {
         if (address(comptroller) != address(0)) {
             accrueVAIInterest();
 
@@ -352,6 +366,15 @@ contract VAIController is
         return (uint(Error.NO_ERROR), burn);
     }
 
+    //wrap of liquidateVAI
+    function liquidateSAI(
+        address borrower,
+        uint repayAmount,
+        VTokenInterface vTokenCollateral
+    ) external returns (uint, uint){
+        return liquidateVAI(borrower, repayAmount, vTokenCollateral);
+    }
+
     /**
      * @notice The sender liquidates the vai minters collateral.
      *  The collateral seized is transferred to the liquidator.
@@ -364,7 +387,7 @@ contract VAIController is
         address borrower,
         uint repayAmount,
         VTokenInterface vTokenCollateral
-    ) external nonReentrant returns (uint, uint) {
+    ) public nonReentrant returns (uint, uint) {
         require(
             !ComptrollerImplInterface(address(comptroller)).protocolPaused(),
             "protocol is paused"
