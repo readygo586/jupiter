@@ -18,5 +18,5 @@ contract VAIControllerInterface {
 
     function mintSAI(address minter, uint mintSAIAmount) public returns (uint);
     function repaySAI(address repayer, uint repaySAIAmount) public returns (uint);
-    function liquidateAAI(address borrower, uint repayAmount, VTokenInterface vTokenCollateral) public returns (uint, uint);
+    function liquidateSAI(address borrower, uint repayAmount, VTokenInterface vTokenCollateral) public returns (uint, uint);
 }

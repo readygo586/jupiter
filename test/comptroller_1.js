@@ -49,8 +49,16 @@ describe("Comptroller_1", () => {
             chai.expect(WBTCSymbol).to.be.equal("WBTC");
             chai.expect(WBTCDecimals).to.be.equal(18);
     
-            let underlying = await vBTC.underlying();
-            chai.expect(underlying).to.be.equal(await WBTC.getAddress());
+            let underlyingAddress = await vBTC.underlying();
+            chai.expect(underlyingAddress).to.be.equal(await WBTC.getAddress());
+
+            // 获取underlyingToken的symbol和name
+            const underlyingToken = await ethers.getContractAt("BEP20Harness", underlyingAddress);
+
+            let underlyingName = await underlyingToken.name();
+            let underlyingSymbol = await underlyingToken.symbol();
+            chai.expect(underlyingName).to.be.equal(WBTCName);
+            chai.expect(WBTCSymbol).to.be.equal(WBTCSymbol);
         });
     
     
@@ -1558,6 +1566,54 @@ describe("Comptroller_1", () => {
             repayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
             chai.expect(repayAmount).to.be.equal(quarter);
         });
+    });
+        describe("Interest Check", () => {
+           it ("mint SAI with interest", async () => {
+                await VaiInstance.setBaseRate(big17);  //10% APY
+                let repayRate = await VaiInstance.getVAIRepayRate();
+                chai.expect(repayRate).to.be.equal(big17);
+                let repayRatePerBlock = await VaiInstance.getVAIRepayRatePerBlock();
+                console.log("repayRatePerBlock", repayRatePerBlock);
+
+                await Comptroller.enterMarkets([await vBTC.getAddress()]);
+                const markets = await Comptroller.getAssetsIn(signer.address);
+                chai.expect(markets).to.be.deep.equal([await vBTC.getAddress()]);
+                let WBTCBalance = await WBTC.balanceOf(signer.address);
+                await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
+                await vBTC.mint(WBTCBalance);
+
+                let [res, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+                chai.expect(res).to.be.equal(0);  //0 = success, otherwise fail
+
+                let oracle = await ethers.getContractAt("PriceOracle", await Comptroller.oracle());
+                let price = await oracle.getUnderlyingPrice(await vBTC.getAddress());
+                [, collateralFactor,] = await Comptroller.markets(await vBTC.getAddress());
+                chai.expect(mintableAmount).to.be.equal(WBTCBalance * price * collateralFactor / (big18 * big18));
+
+                let half = 10000000000000000000n;
+                await VaiInstance.mintSAI(half);
+
+                let VAIbalance = await VAI.balanceOf(signer.address);
+                let totalSupply = await VAI.totalSupply();
+                let repayAmountBefore = await VaiInstance.getVAIRepayAmount(signer.address);
+                chai.expect(VAIbalance).to.be.equal(half);
+                chai.expect(totalSupply).to.be.equal(half);
+                chai.expect(repayAmountBefore).to.be.equal(half);
+                console.log("repayAmount before accumulated interest", repayAmountBefore);
+
+
+                //no interest accumulated
+                let blkNumber1 = await ethers.provider.getBlockNumber();
+                await network.provider.send("hardhat_mine", ["0xA06680"]);
+                let blkNumber2 = await ethers.provider.getBlockNumber();
+                chai.expect(blkNumber2).to.be.equal(blkNumber1 + 10512000);
+
+                let repayAmountAfter = await VaiInstance.getVAIRepayAmount(signer.address);
+                console.log("repayAmount after accumulated interest", repayAmountAfter);
+                let blocksPerYear = await VaiInstance.getBlocksPerYear();
+                chai.expect(repayAmountAfter).to.be.equal(half +half);
+            });
 
     });
 })
+
