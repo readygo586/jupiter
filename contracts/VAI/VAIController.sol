@@ -892,6 +892,49 @@ contract VAIController is
     }
 
     /**
+     * @notice  estimate the total VAI a user needs to repay at blkNumber
+     * @param account The address of the VAI borrower
+     * @param blkNumber the block number where the borrow plan to repay VAI
+     * @return (uint) The total amount of VAI the user needs to repay
+     */
+    function estimateVAIRepayAmount(address account, uint blkNumber) public view returns (uint) {
+        MathError mErr;
+        uint delta;
+
+        uint amount = ComptrollerImplInterface(address(comptroller)).mintedVAIs(
+            account
+        );
+        uint localVaiMintIndex = estimateVAIInterest(blkNumber);
+
+        (mErr, delta) = mulUInt(localVaiMintIndex, 1e18);
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
+        );
+
+        (mErr, delta) = divUInt(delta, getVAIMinterInterestIndex(account));
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
+        );
+
+        (mErr, amount) = mulUInt(amount, delta);
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
+        );
+
+        (mErr, amount) = divUInt(amount, 1e18);
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
+        );
+
+        return amount;
+    }
+
+
+    /**
      * @notice Calculate how much VAI the user needs to repay
      * @param borrower The address of the VAI borrower
      * @param repayAmount The amount of VAI being returned
@@ -1018,6 +1061,29 @@ contract VAIController is
         accrualBlockNumber = getBlockNumber();
     }
 
+    /**
+     * @notice calculate vaiMintIndex according the input blkNumber to estimate VAI interest
+     * @param blkNumber the blkNumber
+     */
+    function estimateVAIInterest(uint blkNumber) public view returns (uint) {
+        MathError mErr;
+        uint delta;
+        require(blkNumber >=getBlockNumber(), "VAI_INTEREST_ACCURE_FAILED");
+
+        (mErr, delta) = mulUInt(vaiMintIndex, getVAIRepayRatePerBlock());
+        require(mErr == MathError.NO_ERROR, "VAI_INTEREST_ACCURE_FAILED");
+
+        (mErr, delta) = divUInt(delta, 1e18);
+        require(mErr == MathError.NO_ERROR, "VAI_INTEREST_ACCURE_FAILED");
+
+        (mErr, delta) = mulUInt(delta, blkNumber - accrualBlockNumber);
+        require(mErr == MathError.NO_ERROR, "VAI_INTEREST_ACCURE_FAILED");
+
+        (mErr, delta) = addUInt(delta, vaiMintIndex);
+        require(mErr == MathError.NO_ERROR, "VAI_INTEREST_ACCURE_FAILED");
+
+       return  delta;
+    }
     /**
      * @notice Set VAI borrow base rate
      * @param newBaseRateMantissa the base rate multiplied by 10**18
