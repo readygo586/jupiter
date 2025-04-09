@@ -1577,7 +1577,7 @@ describe("Comptroller_1", () => {
     });
 
     describe("VAI Interest Check", () => {
-        it("accumulate interest", async () => {
+        it("accumulate interest 10% APY", async () => {
         await VaiInstance.setBaseRate(big17);  //10% APY
         let repayRate = await VaiInstance.getVAIRepayRate();
         chai.expect(repayRate).to.be.equal(big17);
@@ -1610,18 +1610,18 @@ describe("Comptroller_1", () => {
         chai.expect(repayAmountBefore).to.be.equal(half);
         console.log("repayAmount before accumulated interest", repayAmountBefore);
 
-
-        //no interest accumulated
+        //interest accumulated
         let blkNumber1 = await ethers.provider.getBlockNumber();
         await network.provider.send("hardhat_mine", ["0xA06680"]);
         let blkNumber2 = await ethers.provider.getBlockNumber();
         chai.expect(blkNumber2).to.be.equal(blkNumber1 + 10512000);
+        await VaiInstance.accrueVAIInterest(); //update the interest
 
         let repayAmountAfter = await VaiInstance.getVAIRepayAmount(signer.address);
         console.log("repayAmount after accumulated interest", repayAmountAfter);
         let blocksPerYear = await VaiInstance.getBlocksPerYear();
-        chai.expect(repayAmountAfter).to.be.equal(half + half);
-    });
+        chai.expect(repayAmountAfter).to.be.closeTo(repayAmountBefore*BigInt(110)/BigInt(100), BigInt(1e12));
+        });
     });
  })
 
