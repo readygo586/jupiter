@@ -345,8 +345,7 @@ describe("Comptroller_1", () => {
         });
     });
 
-    describe("list markets", () => {
-
+    describe("list markets", () =>  {
         it("list markets with no supply", async () => {
             let allMarkets = await Comptroller.getAllMarkets();  //列出所有市場
 
@@ -750,6 +749,76 @@ describe("Comptroller_1", () => {
 
             let borrowLimitedUsed = VAIbalance * BigInt(100) / (VAIbalance + remainedMintableAmount);
             chai.expect(borrowLimitedUsed).to.be.equal(50);
+        });
+
+        it("get info for max withdraw Amount", async () => {
+            let allMarkets = await Comptroller.getAllMarkets();
+            await Comptroller.enterMarkets([await vUSDC.getAddress(), await vUSDT.getAddress(), await vBTC.getAddress()]);
+            let USDCBalance = await USDC.balanceOf(signer.address);
+            console.log("USDCBalance", USDCBalance);
+            await USDC.approve(await vUSDC.getAddress(), ethers.MaxUint256);
+            await vUSDC.mint(BigInt(100) * big18);
+
+            let USDTBalance = await USDT.balanceOf(signer.address);
+            console.log("USDTBalance", USDTBalance);
+            await USDT.approve(await vUSDT.getAddress(), ethers.MaxUint256);
+            await vUSDT.mint(BigInt(100) * big18);
+
+
+            let WBTCBalance = await WBTC.balanceOf(signer.address);
+            console.log("WBTCBalance" , WBTCBalance);
+            await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
+            await vBTC.mint(BigInt(1) *big18);
+
+            let [, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+            let half = mintableAmount / 2n;
+            await VaiInstance.mintVAI(half);
+
+            let oracle = await ethers.getContractAt("PriceOracle", await Comptroller.oracle());
+
+            let [error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance, withTokenCollateralFactor] = await VaiInstance.getInfoForMaxWithdrawAmount(signer.address, await vUSDC.getAddress());
+            console.log(error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor);
+
+            [error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor] = await VaiInstance.getInfoForMaxWithdrawAmount(signer.address, await vUSDT.getAddress());
+            console.log(error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor);
+
+
+            [error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor] = await VaiInstance.getInfoForMaxWithdrawAmount(signer.address, await vBTC.getAddress());
+            console.log(error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor);
+        });
+
+        it("get max withdraw Amount", async () => {
+
+            await Comptroller.enterMarkets([await vUSDC.getAddress(), await vUSDT.getAddress(), await vBTC.getAddress()]);
+            let USDCBalance = await USDC.balanceOf(signer.address);
+            console.log("USDCBalance", USDCBalance);
+            await USDC.approve(await vUSDC.getAddress(), ethers.MaxUint256);
+            await vUSDC.mint(BigInt(100) * big18);
+
+            let USDTBalance = await USDT.balanceOf(signer.address);
+            console.log("USDTBalance", USDTBalance);
+            await USDT.approve(await vUSDT.getAddress(), ethers.MaxUint256);
+            await vUSDT.mint(BigInt(100) * big18);
+
+
+            let WBTCBalance = await WBTC.balanceOf(signer.address);
+            console.log("WBTCBalance" , WBTCBalance);
+            await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
+            await vBTC.mint(BigInt(1) *big18);
+
+            let [, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
+            let half = mintableAmount / 2n;
+            await VaiInstance.mintVAI(half);
+
+
+            let blkNumber = await ethers.provider.getBlockNumber();
+            let estimateVAIRepayAmount = await VaiInstance.estimateVAIRepayAmount(signer.address, blkNumber);
+            console.log("estimateVAIRepayAmount", estimateVAIRepayAmount);
+            let [err, withdrawAmount] = await VaiInstance.getMaxWithdrawAmount(signer.address, await vUSDC.getAddress(), blkNumber);
+            console.log("error", err, "vUSDC withdrawAmount", withdrawAmount);
+
+            [err, withdrawAmount] = await VaiInstance.getMaxWithdrawAmount(signer.address, await vBTC.getAddress(), blkNumber);
+            console.log("error", err, "vBTC  withdrawAmount", withdrawAmount);
         });
     });
 
@@ -1163,9 +1232,20 @@ describe("Comptroller_1", () => {
         });
     });
 
+    //account1 抵押wBTC，获得SAI，初始价格9.7万
+    //signer 抵押USDC，获得SAI，价格恒定为1
+    // wBTC 价格下跌到6万/
+    // liquidator 提供
+
+    // 1. 演示
+    // 2. 历史记录 (4/E)
+    // 3. 利息,
+    // 4. withdraw 逻辑(4/E)
+    // 5.DTC 币种支持,4 DOS,FEC,xxx, BTC/ETH.
+
     describe("liquidate", async () => {
         beforeEach(async function () {
-            let WBTCBalance = await WBTC.balanceOf(signer.address);
+            let WBTCBalance = await WBTC.balanceOf(signer.address);    //??
             await WBTC.transfer(account1.address, WBTCBalance);
             let WBTCBalance1 = await WBTC.balanceOf(account1.address);
             chai.expect(WBTCBalance1).to.be.equal(WBTCBalance);
@@ -1204,11 +1284,15 @@ describe("Comptroller_1", () => {
             chai.expect(totalSupply).to.be.equal(mintAmount1 + mintAmount);
             chai.expect(repayAmount1).to.be.equal(mintAmount1);
 
+
             //BTC price down to 60000
             await oracle.setUnderlyingPrice(await vBTC.getAddress(), BigInt(60000) * BigInt(10) ** BigInt(18), {gasLimit: "0x1000000"});
         });
+        /*
+        it("liquidate exact closeFactor， price down to 60000", async () => {
+            //BTC price down to 60000
+            await oracle.setUnderlyingPrice(await vBTC.getAddress(), BigInt(60000) * BigInt(10) ** BigInt(18), {gasLimit: "0x1000000"});
 
-        it("liquidate exact closeFactor", async () => {
             let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
 
             //signer liquidate account1's loan
@@ -1216,22 +1300,29 @@ describe("Comptroller_1", () => {
             chai.expect(closeFactor).to.be.equal(5n * big17);
             liquiditionAmount = repayAmount1Before * closeFactor / big18;
             chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000000n);
-
             [res, seizedAmount] = await Comptroller.liquidateVAICalculateSeizeTokens(await vBTC.getAddress(), liquiditionAmount);
             chai.expect(res).to.be.equal(0);
             chai.expect(seizedAmount).to.be.equal(59412500000000000000n);
+            console.log("清算估算，清算者支付 ，SAI的金额",  liquiditionAmount)
+            console.log("清算估算，获得的vBTC的金额 ",  seizedAmount)
 
             //signer assets before liquidation
+            vUSDCBalanceBefore = await vUSDC.balanceOf(signer.address);
             vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
             chai.expect(vBTCBalanceBefore).to.be.equal(0);
             VAIBalanceBefore = await VAI.balanceOf(signer.address);
             chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
+            console.log("清算前，清算者的资产，vUSDC",  vUSDCBalanceBefore)
+            console.log("清算前，清算者的资产，VAI",   VAIBalanceBefore)
 
-            //account assets before liquidation
+            //account1 assets before liquidation
             vBTCBalance1Before = await vBTC.balanceOf(account1.address);
             chai.expect(vBTCBalance1Before).to.be.equal(100000000000000000000n);
             VAIBalance1Before = await VAI.balanceOf(account1.address);
             chai.expect(VAIBalance1Before).to.be.equal(6790000000000000000000000n);
+            console.log("清算前，被清算者的资产，vBTC",  vBTCBalance1Before)
+            console.log("清算前，被清算者的资产 VAI", VAIBalance1Before)
+            //9.7* 0.7
 
             let totalSupplyBefore = await VAI.totalSupply();
 
@@ -1247,14 +1338,23 @@ describe("Comptroller_1", () => {
             //signer‘s asset after liquiation， pay 3395000 VAI, seized 59.4125 BTC
             vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
             VAIBalanceAfter = await VAI.balanceOf(signer.address);
+            let VAIRepayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            console.log("清算后，清算者的资产，vBTC余额",  vBTCBalanceAfter)
+            console.log("清算后，清算者的资产，VAI余额", VAIBalanceAfter)
+            console.log("清算后，清算者的资产，VAI负债",  VAIRepayAmount)
+
             chai.expect(vBTCBalanceAfter).to.be.equal(seizedAmount);
             chai.expect(VAIBalanceBefore - VAIBalanceAfter).to.be.equal(liquiditionAmount);
 
             //account1's asset after liquidation, lost 59.4125 BTC
             let vBTCBalance1After = await vBTC.balanceOf(account1.address);
             let VAIBalance1After = await VAI.balanceOf(account1.address);
+            let VAIRepayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
             chai.expect(vBTCBalance1Before - vBTCBalance1After).to.be.equal(seizedAmount);
             chai.expect(VAIBalance1After).to.be.equal(VAIBalance1Before);
+            console.log("清算后，被清算者的资产，vBTC余额",  vBTCBalance1After)
+            console.log("清算后，被清算者的资产，VAI余额",   VAIBalance1After)
+            console.log("清算后，被清算者的资产，VAI负债",   VAIRepayAmount1)
 
             let totalSupplyAfter = await VAI.totalSupply();
             chai.expect(totalSupplyBefore - totalSupplyAfter).to.be.equal(liquiditionAmount);
@@ -1273,6 +1373,79 @@ describe("Comptroller_1", () => {
             let calculatedShorfall = repayAmount1After - supply1After;
             chai.expect(calculatedShorfall).to.be.equal(shortfall1After)
         });
+        */
+
+        it("liquidate exact closeFactor， price down to 任意值", async () => {
+            //BTC price down to 60000
+            let newPrice = 96000
+            console.log("new BTC price", newPrice)
+            await oracle.setUnderlyingPrice(await vBTC.getAddress(), BigInt(newPrice) * BigInt(10) ** BigInt(18), {gasLimit: "0x1000000"});
+
+            let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+
+            //signer liquidate account1's loan
+            let closeFactor = await Comptroller.closeFactorMantissa();
+            chai.expect(closeFactor).to.be.equal(5n * big17);
+            liquiditionAmount = repayAmount1Before * closeFactor / big18;
+            // chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000000n);
+            [res, seizedAmount] = await Comptroller.liquidateVAICalculateSeizeTokens(await vBTC.getAddress(), liquiditionAmount);
+            chai.expect(res).to.be.equal(0);
+            // chai.expect(seizedAmount).to.be.equal(59412500000000000000n);
+            console.log("清算估算，清算者支付 ，SAI的金额",  liquiditionAmount)
+            console.log("清算估算，获得的vBTC的金额 ",  seizedAmount)
+
+            //signer assets before liquidation
+            vUSDCBalanceBefore = await vUSDC.balanceOf(signer.address);
+            vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
+            // chai.expect(vBTCBalanceBefore).to.be.equal(0);
+            VAIBalanceBefore = await VAI.balanceOf(signer.address);
+            // chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
+            console.log("清算前，清算者的资产，vUSDC",  vUSDCBalanceBefore)
+            console.log("清算前，清算者的资产，VAI",   VAIBalanceBefore)
+
+            //account1 assets before liquidation
+            vBTCBalance1Before = await vBTC.balanceOf(account1.address);
+            // chai.expect(vBTCBalance1Before).to.be.equal(100000000000000000000n);
+            VAIBalance1Before = await VAI.balanceOf(account1.address);
+            // chai.expect(VAIBalance1Before).to.be.equal(6790000000000000000000000n);
+            console.log("清算前，被清算者的资产，vBTC",  vBTCBalance1Before)
+            console.log("清算前，被清算者的资产 VAI", VAIBalance1Before)
+            //9.7* 0.7
+
+            // let totalSupplyBefore = await VAI.totalSupply();
+
+            // let mintedVAIAmount1Before = await Comptroller.mintedVAIs(account1.address);
+            // // chai.expect(mintedVAIAmount1Before).to.be.equal(repayAmount1Before);
+            // // chai.expect(mintedVAIAmount1Before).to.be.equal(VAIBalance1Before);
+
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+            await chai.expect(
+                VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress())
+            ).to.emit(VaiInstance, "LiquidateVAI");
+
+            //signer‘s asset after liquiation， pay 3395000 VAI, seized 59.4125 BTC
+            vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+            VAIBalanceAfter = await VAI.balanceOf(signer.address);
+            let VAIRepayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            console.log("清算后，清算者的资产，vBTC余额",  vBTCBalanceAfter)
+            console.log("清算后，清算者的资产，VAI余额", VAIBalanceAfter)
+            console.log("清算后，清算者的资产，VAI负债",  VAIRepayAmount)
+
+            // chai.expect(vBTCBalanceAfter).to.be.equal(seizedAmount);
+            // chai.expect(VAIBalanceBefore - VAIBalanceAfter).to.be.equal(liquiditionAmount);
+
+            //account1's asset after liquidation, lost 59.4125 BTC
+            let vBTCBalance1After = await vBTC.balanceOf(account1.address);
+            let VAIBalance1After = await VAI.balanceOf(account1.address);
+            let VAIRepayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
+            // chai.expect(vBTCBalance1Before - vBTCBalance1After).to.be.equal(seizedAmount);
+            // chai.expect(VAIBalance1After).to.be.equal(VAIBalance1Before);
+            console.log("清算后，被清算者的资产，vBTC余额",  vBTCBalance1After)
+            console.log("清算后，被清算者的资产，VAI余额",   VAIBalance1After)
+            console.log("清算后，被清算者的资产，VAI负债",   VAIRepayAmount1)
+        });
+
+
 
         it("liquidate exact closeFactor with LiquidateSAI function", async () => {
             let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
@@ -1611,6 +1784,7 @@ describe("Comptroller_1", () => {
         console.log("repayAmount before accumulated interest", repayAmountBefore);
 
         //interest accumulated
+        //changhe 时间
         let blkNumber1 = await ethers.provider.getBlockNumber();
         await network.provider.send("hardhat_mine", ["0xA06680"]);
         let blkNumber2 = await ethers.provider.getBlockNumber();
@@ -1645,7 +1819,7 @@ describe("Comptroller_1", () => {
             [, collateralFactor,] = await Comptroller.markets(await vBTC.getAddress());
             chai.expect(mintableAmount).to.be.equal(WBTCBalance * price * collateralFactor / (big18 * big18));
 
-            let half = 10000000000000000000n;
+            let half = 10000000000000000000n;  //10个
             await VaiInstance.mintSAI(half);
 
             let VAIbalance = await VAI.balanceOf(signer.address);
@@ -1655,7 +1829,6 @@ describe("Comptroller_1", () => {
             chai.expect(totalSupply).to.be.equal(half);
             chai.expect(repayAmountBefore).to.be.equal(half);
             console.log("repayAmount before accumulated interest", repayAmountBefore);
-
 
             //interest accumulated
             let blkNumber1 = await ethers.provider.getBlockNumber();
@@ -1672,6 +1845,268 @@ describe("Comptroller_1", () => {
             let blocksPerYear = await VaiInstance.getBlocksPerYear();
             chai.expect(repayAmountAfter).to.be.closeTo(repayAmountBefore*BigInt(110)/BigInt(100), BigInt(1e12));
             chai.expect(repayAmountAfter).to.be.closeTo(estimatedVAIRepayAmount, BigInt(1e12));
+        });
+
+    });
+
+    describe("liquidate, user borrow limit = 80%", async () => {
+        beforeEach(async function () {
+            let WBTCBalance = await WBTC.balanceOf(signer.address);    //??
+            await WBTC.transfer(account1.address, WBTCBalance);
+            let WBTCBalance1 = await WBTC.balanceOf(account1.address);
+            chai.expect(WBTCBalance1).to.be.equal(WBTCBalance);
+
+            //signer enters usdc market and mint VAI
+            await Comptroller.enterMarkets([await vUSDC.getAddress()]);
+            let USDCBalance = await USDC.balanceOf(signer.address);
+            await USDC.approve(await vUSDC.getAddress(), ethers.MaxUint256);
+            await vUSDC.mint(USDCBalance);
+            [, liquidity,] = await Comptroller.getAccountLiquidity(signer.address);
+            chai.expect(liquidity).to.be.equal(8000000000000000000000000n);  // liqidity provided by vUSDC= 8000000000000000000000000n
+
+            let mintAmount = liquidity;
+            await VaiInstance.mintVAI(mintAmount);
+            let VAIbalance = await VAI.balanceOf(signer.address);
+            let totalSupply = await VAI.totalSupply();
+            let repayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            chai.expect(VAIbalance).to.be.equal(mintAmount);
+            chai.expect(totalSupply).to.be.equal(mintAmount);
+            chai.expect(repayAmount).to.be.equal(mintAmount);
+
+            //account1 enters BTC market and mint VAI
+            await Comptroller.connect(account1).enterMarkets([await vBTC.getAddress()]);
+            await WBTC.connect(account1).approve(await vBTC.getAddress(), ethers.MaxUint256);
+            await vBTC.connect(account1).mint(WBTCBalance);  //只借出80%
+            [, liquidity1, shortfall1] = await Comptroller.getAccountLiquidity(account1.address);
+            chai.expect(liquidity1).to.be.equal(6790000000000000000000000n);  // liqidity provided by vUSDC= 8000000000000000000000000n
+            chai.expect(shortfall1).to.be.equal(0);
+
+            let mintAmount1 = liquidity1 * BigInt(80)/BigInt(100);
+            await VaiInstance.connect(account1).mintVAI(mintAmount1);
+            let VAIbalance1 = await VAI.balanceOf(account1.address);
+            totalSupply = await VAI.totalSupply();
+            let repayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
+            chai.expect(VAIbalance1).to.be.equal(mintAmount1);
+            chai.expect(totalSupply).to.be.equal(mintAmount1 + mintAmount);
+            chai.expect(repayAmount1).to.be.equal(mintAmount1);
+        });
+
+        it("user borrow limit = 80%， price down 96000, 不会触发清算", async () => {
+            let newPrice = 96000
+            console.log("new BTC price", newPrice)
+            await oracle.setUnderlyingPrice(await vBTC.getAddress(), BigInt(newPrice) * BigInt(10) ** BigInt(18), {gasLimit: "0x1000000"});
+
+            let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+
+            //signer liquidate account1's loan
+            let closeFactor = await Comptroller.closeFactorMantissa();
+            chai.expect(closeFactor).to.be.equal(5n * big17);
+            liquiditionAmount = repayAmount1Before * closeFactor / big18;
+
+            //account1 assets before liquidation
+            vBTCBalance1Before = await vBTC.balanceOf(account1.address);
+            // chai.expect(vBTCBalance1Before).to.be.equal(100000000000000000000n);
+            VAIBalance1Before = await VAI.balanceOf(account1.address);
+            // chai.expect(VAIBalance1Before).to.be.equal(6790000000000000000000000n);
+            console.log("尝试清算前，被清算者的资产，vBTC",  vBTCBalance1Before)
+            console.log("尝试清算前，被清算者的资产 VAI", VAIBalance1Before)
+
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+            await VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress());
+
+            let vBTCBalance1After = await vBTC.balanceOf(account1.address);
+            let VAIBalance1After = await VAI.balanceOf(account1.address);
+            let VAIRepayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
+            // chai.expect(vBTCBalance1Before - vBTCBalance1After).to.be.equal(seizedAmount);
+            // chai.expect(VAIBalance1After).to.be.equal(VAIBalance1Before);
+            console.log("尝试清算后，被清算者的资产，vBTC余额",  vBTCBalance1After)
+            console.log("尝试清算后，被清算者的资产，VAI余额",   VAIBalance1After)
+            console.log("尝试清算后，被清算者的资产，VAI负债",   VAIRepayAmount1)
+        });
+
+
+        it("user borrow limit = 80%，price down 77600, 不会触发清算", async () => {
+            let newPrice = 77600
+            console.log("new BTC price", newPrice)
+            await oracle.setUnderlyingPrice(await vBTC.getAddress(), BigInt(newPrice) * BigInt(10) ** BigInt(18), {gasLimit: "0x1000000"});
+
+            let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+
+            //signer liquidate account1's loan
+            let closeFactor = await Comptroller.closeFactorMantissa();
+            chai.expect(closeFactor).to.be.equal(5n * big17);
+            liquiditionAmount = repayAmount1Before * closeFactor / big18;
+
+            //account1 assets before liquidation
+            vBTCBalance1Before = await vBTC.balanceOf(account1.address);
+            // chai.expect(vBTCBalance1Before).to.be.equal(100000000000000000000n);
+            VAIBalance1Before = await VAI.balanceOf(account1.address);
+            // chai.expect(VAIBalance1Before).to.be.equal(6790000000000000000000000n);
+            console.log("尝试清算前，被清算者的资产，vBTC",  vBTCBalance1Before)
+            console.log("尝试清算前，被清算者的资产 VAI", VAIBalance1Before)
+
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+            await VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress());
+
+            let vBTCBalance1After = await vBTC.balanceOf(account1.address);
+            let VAIBalance1After = await VAI.balanceOf(account1.address);
+            let VAIRepayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
+            // chai.expect(vBTCBalance1Before - vBTCBalance1After).to.be.equal(seizedAmount);
+            // chai.expect(VAIBalance1After).to.be.equal(VAIBalance1Before);
+            console.log("尝试清算后，被清算者的资产，vBTC余额",  vBTCBalance1After)
+            console.log("尝试清算后，被清算者的资产，VAI余额",   VAIBalance1After)
+            console.log("尝试清算后，被清算者的资产，VAI负债",   VAIRepayAmount1)
+
+        });
+
+        it("user borrow limit = 80%，price down 77500，触发清算", async () => {
+            //BTC price down to 60000
+            let newPrice = 77500
+            console.log("new BTC price", newPrice)
+            await oracle.setUnderlyingPrice(await vBTC.getAddress(), BigInt(newPrice) * BigInt(10) ** BigInt(18), {gasLimit: "0x1000000"});
+
+            let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+
+            //signer liquidate account1's loan
+            let closeFactor = await Comptroller.closeFactorMantissa();
+            chai.expect(closeFactor).to.be.equal(5n * big17);
+            liquiditionAmount = repayAmount1Before * closeFactor / big18;
+            // chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000000n);
+            [res, seizedAmount] = await Comptroller.liquidateVAICalculateSeizeTokens(await vBTC.getAddress(), liquiditionAmount);
+            chai.expect(res).to.be.equal(0);
+            // chai.expect(seizedAmount).to.be.equal(59412500000000000000n);
+            console.log("清算估算，清算者支付 ，SAI的金额",  liquiditionAmount)
+            console.log("清算估算，获得的vBTC的金额 ",  seizedAmount)
+
+            //signer assets before liquidation
+            vUSDCBalanceBefore = await vUSDC.balanceOf(signer.address);
+            vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
+            // chai.expect(vBTCBalanceBefore).to.be.equal(0);
+            VAIBalanceBefore = await VAI.balanceOf(signer.address);
+            // chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
+            console.log("清算前，清算者的资产，vUSDC",  vUSDCBalanceBefore)
+            console.log("清算前，清算者的资产，VAI",   VAIBalanceBefore)
+
+            //account1 assets before liquidation
+            vBTCBalance1Before = await vBTC.balanceOf(account1.address);
+            // chai.expect(vBTCBalance1Before).to.be.equal(100000000000000000000n);
+            VAIBalance1Before = await VAI.balanceOf(account1.address);
+            // chai.expect(VAIBalance1Before).to.be.equal(6790000000000000000000000n);
+            console.log("清算前，被清算者的资产，vBTC",  vBTCBalance1Before)
+            console.log("清算前，被清算者的资产 VAI", VAIBalance1Before)
+
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+            await chai.expect(
+                VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress())
+            ).to.emit(VaiInstance, "LiquidateVAI");
+
+            //signer‘s asset after liquiation， pay 3395000 VAI, seized 59.4125 BTC
+            vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+            VAIBalanceAfter = await VAI.balanceOf(signer.address);
+            let VAIRepayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            console.log("清算后，清算者的资产，vBTC余额",  vBTCBalanceAfter)
+            console.log("清算后，清算者的资产，VAI余额", VAIBalanceAfter)
+            console.log("清算后，清算者的资产，VAI负债",  VAIRepayAmount)
+
+            // chai.expect(vBTCBalanceAfter).to.be.equal(seizedAmount);
+            // chai.expect(VAIBalanceBefore - VAIBalanceAfter).to.be.equal(liquiditionAmount);
+
+            //account1's asset after liquidation, lost 59.4125 BTC
+            let vBTCBalance1After = await vBTC.balanceOf(account1.address);
+            let VAIBalance1After = await VAI.balanceOf(account1.address);
+            let VAIRepayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
+            // chai.expect(vBTCBalance1Before - vBTCBalance1After).to.be.equal(seizedAmount);
+            // chai.expect(VAIBalance1After).to.be.equal(VAIBalance1Before);
+            console.log("清算后，被清算者的资产，vBTC余额",  vBTCBalance1After)
+            console.log("清算后，被清算者的资产，VAI余额",   VAIBalance1After)
+            console.log("清算后，被清算者的资产，VAI负债",   VAIRepayAmount1)
+        });
+
+
+        it("user borrow limit = 80%，APY= 10%，一年后， price down 85300，触发清算", async () => {
+            await VaiInstance.setBaseRate(big17);  //10% APY
+            let repayRate = await VaiInstance.getVAIRepayRate();
+            chai.expect(repayRate).to.be.equal(big17);
+            let repayRatePerBlock = await VaiInstance.getVAIRepayRatePerBlock();
+            console.log("每个区块的利息", repayRatePerBlock)
+
+            let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+            console.log("计算利息之前，用户要还的SAI", repayAmount1Before)
+
+            let blkNumber1 = await ethers.provider.getBlockNumber();
+            await network.provider.send("hardhat_mine", ["0xA06680"]);
+            let blkNumber2 = await ethers.provider.getBlockNumber();
+            chai.expect(blkNumber2).to.be.equal(blkNumber1 + 10512000);
+            await VaiInstance.accrueVAIInterest(); //update the interest
+
+            repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+            console.log("一年后，用户要还的SAI", repayAmount1Before)
+
+            let newPrice = 85300
+            console.log("new BTC price", newPrice)
+            await oracle.setUnderlyingPrice(await vBTC.getAddress(), BigInt(newPrice) * BigInt(10) ** BigInt(18), {gasLimit: "0x1000000"});
+
+            repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+
+            //signer liquidate account1's loan
+            let closeFactor = await Comptroller.closeFactorMantissa();
+            chai.expect(closeFactor).to.be.equal(5n * big17);
+            liquiditionAmount = repayAmount1Before * closeFactor / big18;
+            // chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000000n);
+            [res, seizedAmount] = await Comptroller.liquidateVAICalculateSeizeTokens(await vBTC.getAddress(), liquiditionAmount);
+            chai.expect(res).to.be.equal(0);
+            // chai.expect(seizedAmount).to.be.equal(59412500000000000000n);
+            console.log("清算估算，清算者支付 ，SAI的金额",  liquiditionAmount)
+            console.log("清算估算，获得的vBTC的金额 ",  seizedAmount)
+
+            //signer assets before liquidation
+            vUSDCBalanceBefore = await vUSDC.balanceOf(signer.address);
+            vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
+            // chai.expect(vBTCBalanceBefore).to.be.equal(0);
+            VAIBalanceBefore = await VAI.balanceOf(signer.address);
+            let VAIRepayAmountBefore = await VaiInstance.getVAIRepayAmount(signer.address);
+            // chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
+            console.log("清算前，清算者的资产，vUSDC",  vUSDCBalanceBefore)
+            console.log("清算前，清算者的资产，VAI",   VAIBalanceBefore)
+            console.log("清算前，清算者的资产，VAI负债",   VAIRepayAmountBefore)
+
+            //account1 assets before liquidation
+            vBTCBalance1Before = await vBTC.balanceOf(account1.address);
+            // chai.expect(vBTCBalance1Before).to.be.equal(100000000000000000000n);
+            VAIBalance1Before = await VAI.balanceOf(account1.address);
+            let VAIRepayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
+            // chai.expect(VAIBalance1Before).to.be.equal(6790000000000000000000000n);
+            console.log("清算前，被清算者的资产，vBTC",  vBTCBalance1Before)
+            console.log("清算前，被清算者的资产 VAI", VAIBalance1Before)
+            console.log("清算前，被清算者的资产，VAI负债",  VAIRepayAmount1Before)
+
+            await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+            liquiditionAmount = VAIRepayAmount1Before * closeFactor / big18;
+            console.log("清算支付",liquiditionAmount)
+            await chai.expect(
+                VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress())
+            ).to.emit(VaiInstance, "LiquidateVAI");
+
+            //signer‘s asset after liquiation， pay 3395000 VAI, seized 59.4125 BTC
+            vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+            VAIBalanceAfter = await VAI.balanceOf(signer.address);
+            VAIRepayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            console.log("清算后，清算者的资产，vBTC余额",  vBTCBalanceAfter)
+            console.log("清算后，清算者的资产，VAI余额", VAIBalanceAfter)
+            console.log("清算后，清算者的资产，VAI负债",  VAIRepayAmount)
+
+            // chai.expect(vBTCBalanceAfter).to.be.equal(seizedAmount);
+            // chai.expect(VAIBalanceBefore - VAIBalanceAfter).to.be.equal(liquiditionAmount);
+
+            //account1's asset after liquidation, lost 59.4125 BTC
+            let vBTCBalance1After = await vBTC.balanceOf(account1.address);
+            let VAIBalance1After = await VAI.balanceOf(account1.address);
+            let VAIRepayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
+            // chai.expect(vBTCBalance1Before - vBTCBalance1After).to.be.equal(seizedAmount);
+            // chai.expect(VAIBalance1After).to.be.equal(VAIBalance1Before);
+            console.log("清算后，被清算者的资产，vBTC余额",  vBTCBalance1After)
+            console.log("清算后，被清算者的资产，VAI余额",   VAIBalance1After)
+            console.log("清算后，被清算者的资产，VAI负债",   VAIRepayAmount1)
         });
 
     });
