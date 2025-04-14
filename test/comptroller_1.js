@@ -2156,9 +2156,8 @@ describe("Comptroller_1", () => {
             chai.expect(totalSupply).to.be.equal(mintAmount1 + mintAmount);
             chai.expect(repayAmount1).to.be.equal(mintAmount1);
         });
-
-
-        it("user borrow limit = 88%，price down 85300，触发清算", async () => {
+        
+        it("user borrow limit = 88%, No interest，price down 85300，触发清算", async () => {
             //BTC price down to 60000
             let newPrice = 85300
             console.log("new BTC price", newPrice)
