@@ -10,6 +10,8 @@ import "./VAIControllerStorage.sol";
 import "./VAIUnitroller.sol";
 import "./VAI.sol";
 
+import "hardhat/console.sol";
+
 interface ComptrollerImplInterface {
     function protocolPaused() external view returns (bool);
 
@@ -314,7 +316,7 @@ contract VAIController is
     function repayVAIFresh(
         address payer,
         address borrower,
-        uint repayAmount
+        uint repayAmount  // 2987600.06 vai 
     ) internal returns (uint, uint) {
         MathError mErr;
 
@@ -323,6 +325,13 @@ contract VAIController is
             uint partOfCurrentInterest,
             uint partOfPastInterest
         ) = getVAICalculateRepayAmount(borrower, repayAmount);
+
+
+        console.log("======合约参数打印，实际烧毁清算者 vai 数量： ",burn);
+
+        console.log("======合约参数打印，partOfCurrentInterest： ",partOfCurrentInterest);
+
+        console.log("=== 合约参数打印 receiver:", receiver);
 
         VAI(vai).burn(payer, burn);
         bool success = VAI(vai).transferFrom(
@@ -427,7 +436,7 @@ contract VAIController is
     function liquidateVAIFresh(
         address liquidator,
         address borrower,
-        uint repayAmount,
+        uint repayAmount,  // @audit 注意这个值的计算，清算者提供的 vai 数量为 2987600.05
         VTokenInterface vTokenCollateral
     ) internal returns (uint, uint) {
         if (address(comptroller) != address(0)) {
@@ -441,6 +450,10 @@ contract VAIController is
                 borrower,
                 repayAmount
             );
+
+            // 为0，对的
+            console.log("合约清算参数打印：allowed is ",allowed);
+
             if (allowed != 0) {
                 return (
                     failOpaque(
@@ -498,11 +511,19 @@ contract VAIController is
             }
 
             /* Fail if repayVAI fails */
+            // @audit 参数 actualRepayAmount ？？
             (uint repayBorrowError, uint actualRepayAmount) = repayVAIFresh(
                 liquidator,
                 borrower,
-                repayAmount
+                repayAmount   // 2987600.05 个 vai,
             );
+
+            // 为 0
+            console.log("合约清算参数打印：repayBorrowError is ",repayBorrowError);
+
+            // 注意这个值是 2715999.92 
+            console.log("合约清算参数打印：actualRepayAmount is ",actualRepayAmount);
+
             if (repayBorrowError != uint(Error.NO_ERROR)) {
                 return (
                     fail(
@@ -523,6 +544,10 @@ contract VAIController is
                     address(vTokenCollateral),
                     actualRepayAmount
                 );
+
+            // @audit 这里就是清算者实际获得的 btc 数量 33.432589901674719896
+            console.log("合约清算参数打印：seizeTokens is ",seizeTokens);
+
             require(
                 amountSeizeError == uint(Error.NO_ERROR),
                 "VAI_LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED"
@@ -843,6 +868,8 @@ contract VAIController is
         address minter
     ) public view returns (uint256) {
         uint256 storedIndex = vaiMinterInterestIndex[minter];
+
+        console.log("the storedIndex is:",storedIndex);
         // If the user minted VAI before the stability fee was introduced, accrue
         // starting from stability fee launch
         if (storedIndex == 0) {
@@ -887,8 +914,12 @@ contract VAIController is
             mErr == MathError.NO_ERROR,
             "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
         );
+         
+        console.log("the getVAIRepayAmount amount is: ", amount);
 
         return amount;
+
+       
     }
 
     /**

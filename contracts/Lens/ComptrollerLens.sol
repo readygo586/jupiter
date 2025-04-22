@@ -9,6 +9,8 @@ import "../ErrorReporter.sol";
 import "../Comptroller.sol";
 import "../VAI/VAIControllerInterface.sol";
 
+import "hardhat/console.sol";
+
 contract ComptrollerLens is
     ComptrollerLensInterface,
     ComptrollerErrorReporter,
@@ -85,6 +87,9 @@ contract ComptrollerLens is
          */
         uint exchangeRateMantissa = VToken(vTokenCollateral)
             .exchangeRateStored(); // Note: reverts on error
+
+
+        console.log("合约中打印----the vBTC-btc exchangeRateMantissa  is: ",exchangeRateMantissa);
         uint seizeTokens;
         Exp memory numerator;
         Exp memory denominator;
@@ -97,10 +102,19 @@ contract ComptrollerLens is
             }),
             Exp({mantissa: priceBorrowedMantissa})
         );
+
+        console.log("合约中打印----the liquidationIncentive is: ",Comptroller(comptroller)
+                    .liquidationIncentiveMantissa());
+                    
+        console.log("合约中打印----the priceBorrowedMantissa is: ",priceBorrowedMantissa);            
+
         denominator = mul_(
             Exp({mantissa: priceCollateralMantissa}),
             Exp({mantissa: exchangeRateMantissa})
         );
+
+
+        console.log("合约中打印----the priceCollateralMantissa  is:",priceCollateralMantissa);
         ratio = div_(numerator, denominator);
 
         seizeTokens = mul_ScalarTruncate(ratio, actualRepayAmount);

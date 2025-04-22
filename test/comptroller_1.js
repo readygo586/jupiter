@@ -18,7 +18,7 @@ describe("Comptroller_1", () => {
     const big16 = BigInt(10) ** BigInt(16);
 
     beforeEach(async function () {
-        [signer, account1, account2] = await ethers.getSigners();
+        [signer, account1, account2,account3] = await ethers.getSigners();
         const {
             comptroller,
             vTokenInstanceUSDT,
@@ -2024,14 +2024,19 @@ describe("Comptroller_1", () => {
 
 
        it("user borrow limit = 80%，APY= 10%，一年后， price down 85300，触发清算", async () => {
+
+            console.log("-----------------------------------------------------------");
             await VaiInstance.setBaseRate(big17);  //10% APY
+
+            // 
             let repayRate = await VaiInstance.getVAIRepayRate();
             chai.expect(repayRate).to.be.equal(big17);
             let repayRatePerBlock = await VaiInstance.getVAIRepayRatePerBlock();
-            console.log("每个区块的利息", repayRatePerBlock)
+            console.log("--1:每个区块的利息", repayRatePerBlock)
 
+            // @audit 这里计算需要偿还的 vai 数量是  5432000  个
             let repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
-            console.log("计算利息之前，用户要还的SAI", repayAmount1Before)
+            console.log("--2:计算利息之前，用户要还的SAI", repayAmount1Before)
 
             let blkNumber1 = await ethers.provider.getBlockNumber();
             await network.provider.send("hardhat_mine", ["0xA06680"]);
@@ -2039,78 +2044,133 @@ describe("Comptroller_1", () => {
             chai.expect(blkNumber2).to.be.equal(blkNumber1 + 10512000);
             await VaiInstance.accrueVAIInterest(); //update the interest
 
-
+            // @audit 0.7 的抵押率，刚达到清算线
             let newPrice = 85300
-            console.log("new BTC price", newPrice)
+            console.log("--3:new BTC price", newPrice)
             await oracle.setUnderlyingPrice(await vBTC.getAddress(), BigInt(newPrice) * BigInt(10) ** BigInt(18), {gasLimit: "0x1000000"});
 
+
+            // @audit 这里大概是 10% 的借贷利率，需要偿还 5975200.103341166512080000  的 vai
             repayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
-            console.log("一年后，用户要还的SAI", repayAmount1Before)
+            console.log("--4:一年后，用户要还的SAI", repayAmount1Before)
 
             //signer liquidate account1's loan
             let closeFactor = await Comptroller.closeFactorMantissa();
+            // @audit 按照 0.5e17,就是一半的数量进行清算 
             chai.expect(closeFactor).to.be.equal(5n * big17);
+
+            // @audit 根据代码，这里直接清算用户一半的 vai, 计算出来就是 2987600.051670583256040000 个 vai 
             liquiditionAmount = repayAmount1Before * closeFactor / big18;
-            // chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000000n);
+            
+            console.log("--001: liquiditionAmount is:", liquiditionAmount);
+
+
+            //chai.expect(liquiditionAmount).to.be.equal(3395000000000000000000000n);
+
+            // @audit 按照 BTC 价格 85300 需要清算的数量 
+            // 但是要注意，这里计算的 seizedAmount 是需要清算的 btc 数量，这里扣除了 清算者的激励，被清算方需要扣除更多的本金
+            // 根据此时的 vbtc-btc exchange rate 为 1, 清算奖励 1.05  需要多扣除 5% 的 
+            // 默认 vai 的价格为 1 usd,  btc 价格为 85300 
             [res, seizedAmount] = await Comptroller.liquidateVAICalculateSeizeTokens(await vBTC.getAddress(), liquiditionAmount);
             chai.expect(res).to.be.equal(0);
+
+            // 
             // chai.expect(seizedAmount).to.be.equal(59412500000000000000n);
-            console.log("清算估算，清算者支付 ，SAI的金额",  liquiditionAmount)
-            console.log("清算估算，获得的vBTC的金额 ",  seizedAmount)
+            console.log("--5:清算估算，清算者支付 ，SAI的金额",  liquiditionAmount)
+
+            //@audit 这里是 36.77 5850 5774 2009 0977
+            // 注意这里扣除了 清算奖励，为实际清算 btc 数量 35.0246 * 1.05 = 36.7758 btc  
+            console.log("--6:清算估算，获得的vBTC的金额 ",  seizedAmount)
 
             //signer assets before liquidation
+            // @audit 清算者持有 10 000 000  的 vusdc
             vUSDCBalanceBefore = await vUSDC.balanceOf(signer.address);
             vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
-            // chai.expect(vBTCBalanceBefore).to.be.equal(0);
+            chai.expect(vBTCBalanceBefore).to.be.equal(0);
+
+            // @audit 清算着持有 8000000 个 vai
             VAIBalanceBefore = await VAI.balanceOf(signer.address);
+
+            // @audit 此时清算者持有 8800000.152196121520000000 的 vai 债务
             let VAIRepayAmountBefore = await VaiInstance.getVAIRepayAmount(signer.address);
             // chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
-            console.log("清算前，清算者的资产，vUSDC",  vUSDCBalanceBefore)
-            console.log("清算前，清算者的资产，VAI",   VAIBalanceBefore)
-            console.log("清算前，清算者的资产，VAI负债",   VAIRepayAmountBefore)
+            console.log("--7:清算前，清算者的资产，vUSDC",  vUSDCBalanceBefore)
+            console.log("--8:清算前，清算者的资产，VAI",   VAIBalanceBefore)
+            console.log("--9:清算前，清算者的资产，VAI负债",   VAIRepayAmountBefore)
 
             //account1 assets before liquidation
+            // @audit 被清算地址当前持有 100 btc
             vBTCBalance1Before = await vBTC.balanceOf(account1.address);
             // chai.expect(vBTCBalance1Before).to.be.equal(100000000000000000000n);
+
+            // @audit 此时，被清算地址持有的 vai 数量是  5432000  个，但已经过了一年
+            // 这个应该不是他的实际债务，实际债务是 按照 10% 利率，是 5975200 个 vai 
             VAIBalance1Before = await VAI.balanceOf(account1.address);
             let VAIRepayAmount1Before = await VaiInstance.getVAIRepayAmount(account1.address);
             // chai.expect(VAIBalance1Before).to.be.equal(6790000000000000000000000n);
-            console.log("清算前，被清算者的资产，vBTC",  vBTCBalance1Before)
-            console.log("清算前，被清算者的资产 VAI", VAIBalance1Before)
-            console.log("清算前，被清算者的资产，VAI负债",  VAIRepayAmount1Before)
+            console.log("--10:清算前，被清算者的资产，vBTC",  vBTCBalance1Before)
+            console.log("--11:清算前，被清算者的资产 VAI", VAIBalance1Before)
+            console.log("--12:清算前，被清算者的资产，VAI负债",  VAIRepayAmount1Before)
 
             await VAI.approve(await VaiInstance.getAddress(), ethers.MaxUint256);
+
+            // @audit 计算清算者需要支付的 vai 数量，这里是支付 2987600.05 个 vai 
+            // 按照债务的一半来清算
             liquiditionAmount = VAIRepayAmount1Before * closeFactor / big18;
-            console.log("清算支付",liquiditionAmount)
+            console.log("--13:清算支付",liquiditionAmount)
+
+            let  getReceiverVAIBalanceBeforeLiquidation = await VAI.balanceOf(account3.address);
+
+            
+            await VaiInstance.setReceiver(account3.address);
+
+
+            // @audit 这里开始清算 account1 的资产
             await chai.expect(
                 VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress())
             ).to.emit(VaiInstance, "LiquidateVAI");
 
-            console.log("清算后,刷新利息")
+            console.log("--14:清算后,刷新利息")
             await VaiInstance.accrueVAIInterest(); //update the interest
 
+
+            let  getReceiverVAIBalanceAfterLiquidation = await VAI.balanceOf(account3.address);
+
+            console.log("--------receiver 收到的 vai 数量：", 
+                getReceiverVAIBalanceAfterLiquidation - getReceiverVAIBalanceBeforeLiquidation);
             //signer‘s asset after liquiation， pay 3395000 VAI, seized 59.4125 BTC
+
+            //@audit 实际清算者支付的 vai 数量为 2987600.05，那么理论上应该获得的 btc 数量是 36.7758 个，
+            // 但实际却是 33.4325 个
             vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
+
+
             let exchangeRate = await vBTC.exchangeRateStored();
             VAIBalanceAfter = await VAI.balanceOf(signer.address);
-            VAIRepayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
-            console.log("清算后，清算者的资产，vBTC余额",  vBTCBalanceAfter)
-            console.log("清算后，清算者的资产，vBTC exchangeRate",  exchangeRate)
-            console.log("清算后，清算者的资产，VAI余额", VAIBalanceAfter)
-            console.log("清算后，清算者的资产，VAI负债",  VAIRepayAmount)
 
+            console.log("--------清算者实际支付的 vai 数量：", VAIBalanceBefore - VAIBalanceAfter);
+
+            VAIRepayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
+            console.log("--15:清算后，清算者的资产，vBTC余额",  vBTCBalanceAfter)  // @audit 这个结果
+            console.log("--16:清算后，清算者的资产，vBTC exchangeRate",  exchangeRate)
+            console.log("--17:清算后，清算者的资产，VAI余额", VAIBalanceAfter)
+            console.log("--18:清算后，清算者的资产，VAI负债",  VAIRepayAmount)
             // chai.expect(vBTCBalanceAfter).to.be.equal(seizedAmount);
             // chai.expect(VAIBalanceBefore - VAIBalanceAfter).to.be.equal(liquiditionAmount);
 
             //account1's asset after liquidation, lost 59.4125 BTC
             let vBTCBalance1After = await vBTC.balanceOf(account1.address);
             let VAIBalance1After = await VAI.balanceOf(account1.address);
+
+            // @audit 此时被清算者的债务变为原来的一半，2987600.05 
             let VAIRepayAmount1 = await VaiInstance.getVAIRepayAmount(account1.address);
             // chai.expect(vBTCBalance1Before - vBTCBalance1After).to.be.equal(seizedAmount);
             // chai.expect(VAIBalance1After).to.be.equal(VAIBalance1Before);
-            console.log("清算后，被清算者的资产，vBTC余额",  vBTCBalance1After)
-            console.log("清算后，被清算者的资产，VAI余额",   VAIBalance1After)
-            console.log("清算后，被清算者的资产，VAI负债",   VAIRepayAmount1)
+            console.log("--19:清算后，被清算者的资产，vBTC余额",  vBTCBalance1After)
+            console.log("--20:清算后，被清算者的资产，VAI余额",   VAIBalance1After)
+            console.log("--21:清算后，被清算者的资产，VAI负债",   VAIRepayAmount1)
+
+            console.log("-----------------------------------------------------------");
         });
 
     });
