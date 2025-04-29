@@ -10,6 +10,7 @@ import "./VAIControllerStorage.sol";
 import "./VAIUnitroller.sol";
 import "./VAI.sol";
 
+
 interface ComptrollerImplInterface {
     function protocolPaused() external view returns (bool);
 
@@ -115,7 +116,12 @@ contract VAIController is
         uint accountMintableVAI;
     }
 
-    function mintVAI(uint mintVAIAmount) external nonReentrant returns (uint) {
+    //wrap of mintVAI
+    function mintSAI( uint mintSAIAmount) external returns (uint) {
+        return mintVAI(mintSAIAmount);
+    }
+
+    function mintVAI(uint mintVAIAmount) public nonReentrant returns (uint) {
         if (address(comptroller) != address(0)) {
             require(mintVAIAmount > 0, "mintVAIAmount cannt be zero");
             require(
@@ -267,11 +273,20 @@ contract VAIController is
     }
 
     /**
+     * @notice Repay SAI
+     */
+    function repaySAI(
+        uint repaySAIAmount
+    ) external returns (uint, uint) {
+        return repayVAI(repaySAIAmount);
+    }
+
+    /**
      * @notice Repay VAI
      */
     function repayVAI(
         uint repayVAIAmount
-    ) external nonReentrant returns (uint, uint) {
+    ) public nonReentrant returns (uint, uint) {
         if (address(comptroller) != address(0)) {
             accrueVAIInterest();
 
@@ -309,6 +324,7 @@ contract VAIController is
             uint partOfCurrentInterest,
             uint partOfPastInterest
         ) = getVAICalculateRepayAmount(borrower, repayAmount);
+
 
         VAI(vai).burn(payer, burn);
         bool success = VAI(vai).transferFrom(
@@ -349,7 +365,23 @@ contract VAIController is
         }
         emit RepayVAI(payer, borrower, burn);
 
-        return (uint(Error.NO_ERROR), burn);
+        uint256 repaidAmount;
+        (mErr, repaidAmount) = addUInt(burn, partOfCurrentInterest);
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_BURN_AMOUNT_CALCULATION_FAILED"
+        );
+       
+        return (uint(Error.NO_ERROR), repaidAmount);
+    }
+
+    //wrap of liquidateVAI
+    function liquidateSAI(
+        address borrower,
+        uint repayAmount,
+        VTokenInterface vTokenCollateral
+    ) external returns (uint, uint){
+        return liquidateVAI(borrower, repayAmount, vTokenCollateral);
     }
 
     /**
@@ -364,7 +396,7 @@ contract VAIController is
         address borrower,
         uint repayAmount,
         VTokenInterface vTokenCollateral
-    ) external nonReentrant returns (uint, uint) {
+    ) public nonReentrant returns (uint, uint) {
         require(
             !ComptrollerImplInterface(address(comptroller)).protocolPaused(),
             "protocol is paused"
@@ -869,6 +901,49 @@ contract VAIController is
     }
 
     /**
+     * @notice  estimate the total VAI a user needs to repay at blkNumber
+     * @param account The address of the VAI borrower
+     * @param blkNumber the block number where the borrow plan to repay VAI
+     * @return (uint) The total amount of VAI the user needs to repay
+     */
+    function estimateVAIRepayAmount(address account, uint blkNumber) public view returns (uint) {
+        MathError mErr;
+        uint delta;
+
+        uint amount = ComptrollerImplInterface(address(comptroller)).mintedVAIs(
+            account
+        );
+        uint localVaiMintIndex = estimateVAIInterest(blkNumber);
+
+        (mErr, delta) = mulUInt(localVaiMintIndex, 1e18);
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
+        );
+
+        (mErr, delta) = divUInt(delta, getVAIMinterInterestIndex(account));
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
+        );
+
+        (mErr, amount) = mulUInt(amount, delta);
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
+        );
+
+        (mErr, amount) = divUInt(amount, 1e18);
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
+        );
+
+        return amount;
+    }
+
+
+    /**
      * @notice Calculate how much VAI the user needs to repay
      * @param borrower The address of the VAI borrower
      * @param repayAmount The amount of VAI being returned
@@ -994,6 +1069,37 @@ contract VAIController is
         vaiMintIndex = delta;
         accrualBlockNumber = getBlockNumber();
     }
+
+    /**
+     * @notice calculate vaiMintIndex according the input blkNumber to estimate VAI interest
+     * @param blkNumber the blkNumber
+     */
+    function estimateVAIInterest(uint blkNumber) public view returns (uint) {
+        MathError mErr;
+        uint delta;
+        require(blkNumber >=getBlockNumber(), "VAI_INTEREST_ACCURE_FAILED");
+
+        (mErr, delta) = mulUInt(vaiMintIndex, getVAIRepayRatePerBlock());
+        require(mErr == MathError.NO_ERROR, "VAI_INTEREST_ACCURE_FAILED");
+
+        (mErr, delta) = divUInt(delta, 1e18);
+        require(mErr == MathError.NO_ERROR, "VAI_INTEREST_ACCURE_FAILED");
+
+        (mErr, delta) = mulUInt(delta, blkNumber - accrualBlockNumber);
+        require(mErr == MathError.NO_ERROR, "VAI_INTEREST_ACCURE_FAILED");
+
+        (mErr, delta) = addUInt(delta, vaiMintIndex);
+        require(mErr == MathError.NO_ERROR, "VAI_INTEREST_ACCURE_FAILED");
+
+       return  delta;
+    }
+
+
+
+
+
+
+
 
     /**
      * @notice Set VAI borrow base rate
