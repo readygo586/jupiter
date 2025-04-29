@@ -124,18 +124,21 @@ async function addVTokenWithoutDeploy() {
     let name = await vDTT.name();
     let decimal = await vDTT.decimals();
     let underlying = await vDTT.underlying();
-    console.log("vDTT", "address", vDTTAddress, "symbol", symbol, "name", name, "decimal", decimal, "underlying", underlying);
+    let isVToken = await vDTT.isVToken();
+    console.log("vDTT", "address", vDTTAddress, "symbol", symbol, "name", name, "decimal", decimal, "underlying", underlying, "isVToken", isVToken);
 
     let price = await oracle.getUnderlyingPrice(vDTTAddress);
     console.log("vDTT underlying price", price);
 
 
-    let tx = await comptroller._setCollateralFactor(vDTTAddress, collateralFactor, { gasLimit: "0x1000000" });
+    await comptroller._setCollateralFactor(vDTTAddress, collateralFactor, { gasLimit: "0x1000000" });
     await sleep(delay);
     console.log("_setCollateralFactor");
 
-    [, collateralFactorMantissa,] = await comptroller.markets(vDTTAddress);
+    [isListed, collateralFactorMantissa,] = await comptroller.markets(vDTTAddress);
+    chai.expect(isListed).to.be.equal(true);
     chai.expect(collateralFactorMantissa).to.be.equal(collateralFactor);
+
     console.log("collateralFactorMantissa", collateralFactorMantissa )
 
 
