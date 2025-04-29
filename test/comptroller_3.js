@@ -78,7 +78,7 @@ describe("Comptroller_3", () => {
             );
             await vTokenInstance.waitForDeployment();
 
-            let initPrice = BigInt(20) ** BigInt(16);  //price = 0.2 USDT
+            let initPrice = (BigInt(20) ** BigInt(16)) * (BigInt(10) ** BigInt(18 - underlyingTokenDecimals));  //price = 0.2 USDT
             await oracle.setUnderlyingPrice(await vTokenInstance.getAddress(), initPrice, { gasLimit: "0x1000000" });
 
             //await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_supportMarket(address)`, signer, { gasLimit: "0x1000000" });
