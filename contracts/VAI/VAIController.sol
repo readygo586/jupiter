@@ -130,7 +130,7 @@ contract VAIController is
                     .protocolPaused(),
                 "protocol is paused"
             );
-
+            console.log("======合约参数打印，mintVAI, mintVAIAmount",mintVAIAmount);
             accrueVAIInterest();
 
             MintLocalVars memory vars;
@@ -158,7 +158,7 @@ contract VAIController is
             if (vars.oErr != uint(Error.NO_ERROR)) {
                 return uint(Error.REJECTION);
             }
-
+            console.log("======合约参数打印，mintVAI, accountMintableVAI ",vars.accountMintableVAI);
             // check that user have sufficient mintableVAI balance
             if (mintVAIAmount > vars.accountMintableVAI) {
                 return fail(Error.REJECTION, FailureInfo.VAI_MINT_REJECTION);
@@ -168,11 +168,12 @@ contract VAIController is
             uint totalMintedVAI = ComptrollerImplInterface(address(comptroller))
                 .mintedVAIs(minter);
 
+            console.log("======合约参数打印，mintVAI, totalMintedVAI ",totalMintedVAI);
             if (totalMintedVAI > 0) {
                 uint256 repayAmount = getVAIRepayAmount(minter);
                 uint remainedAmount;
-
-                (vars.mathErr, remainedAmount) = subUInt(
+                console.log("======合约参数打印，mintVAI, repayAmount ",repayAmount);
+                (vars.mathErr, remainedAmount) = subUInt( //remainedAmount 为本次的利息
                     repayAmount,
                     totalMintedVAI
                 );
@@ -184,7 +185,7 @@ contract VAIController is
                             uint(vars.mathErr)
                         );
                 }
-
+                console.log("======合约参数打印，mintVAI, remainedAmount ",remainedAmount);
                 (vars.mathErr, pastVAIInterest[minter]) = addUInt(
                     pastVAIInterest[minter],
                     remainedAmount
@@ -197,11 +198,11 @@ contract VAIController is
                             uint(vars.mathErr)
                         );
                 }
-
+                console.log("======合约参数打印，mintVAI, pastVAIInterest[minter] ",pastVAIInterest[minter]);
                 totalMintedVAI = repayAmount;
             }
 
-            (vars.mathErr, vars.accountMintVAINew) = addUInt(
+            (vars.mathErr, vars.accountMintVAINew) = addUInt( //根据repayAmount 调整totalMintedVAI.
                 totalMintedVAI,
                 mintVAIAmount
             );
@@ -326,11 +327,10 @@ contract VAIController is
             uint partOfPastInterest
         ) = getVAICalculateRepayAmount(borrower, repayAmount);
 
-
-        console.log("======合约参数打印，实际烧毁清算者 vai 数量： ",burn);
-
-        console.log("======合约参数打印，partOfCurrentInterest： ",partOfCurrentInterest);
-
+        console.log("======合约参数打印，repayVAIFresh, repayAmount：",repayAmount);
+        console.log("======合约参数打印，repayVAIFresh, 实际烧毁清算者 vai 数量：",burn);
+        console.log("======合约参数打印，repayVAIFresh, partOfCurrentInterest：",partOfCurrentInterest);
+        console.log("======合约参数打印，repayVAIFresh, partOfPastInterest：",partOfPastInterest);
         console.log("=== 合约参数打印 receiver:", receiver);
 
         VAI(vai).burn(payer, burn);
@@ -344,19 +344,19 @@ contract VAIController is
         uint vaiBalanceBorrower = ComptrollerImplInterface(address(comptroller))
             .mintedVAIs(borrower);
         uint accountVAINew;
-
+        console.log("======合约参数打印，repayVAIFresh, vaiBalanceBorrower：",vaiBalanceBorrower);
         (mErr, accountVAINew) = subUInt(vaiBalanceBorrower, burn);
         require(
             mErr == MathError.NO_ERROR,
             "VAI_BURN_AMOUNT_CALCULATION_FAILED"
         );
-
+        console.log("======合约参数打印，repayVAIFresh, after sub burn，accountVAINew：",accountVAINew);
         (mErr, accountVAINew) = subUInt(accountVAINew, partOfPastInterest);
         require(
             mErr == MathError.NO_ERROR,
             "VAI_BURN_AMOUNT_CALCULATION_FAILED"
         );
-
+        console.log("======合约参数打印，repayVAIFresh, after sub partOfPastInterest, accountVAINew：",accountVAINew);
         (mErr, pastVAIInterest[borrower]) = subUInt(
             pastVAIInterest[borrower],
             partOfPastInterest
@@ -365,14 +365,16 @@ contract VAIController is
             mErr == MathError.NO_ERROR,
             "VAI_BURN_AMOUNT_CALCULATION_FAILED"
         );
-
+        console.log("======合约参数打印，repayVAIFresh, pastVAIInterest[borrower]：",pastVAIInterest[borrower]);
         uint error = comptroller.setMintedVAIOf(borrower, accountVAINew);
         if (error != 0) {
             return (error, 0);
         }
         emit RepayVAI(payer, borrower, burn);
 
-        return (uint(Error.NO_ERROR), burn);
+        uint256 repaidAmount = burn + partOfCurrentInterest;
+        console.log("======合约参数打印，repayVAIFresh, repaidAmount：",repaidAmount);
+        return (uint(Error.NO_ERROR), repaidAmount);
     }
 
     //wrap of liquidateVAI
@@ -384,6 +386,12 @@ contract VAIController is
         return liquidateVAI(borrower, repayAmount, vTokenCollateral);
     }
 
+    //19047618504079952020000
+    //  952381495920047970995
+    //  952381115402551430674
+
+    //1000000199708487220000
+     //952381115402551430674
     /**
      * @notice The sender liquidates the vai minters collateral.
      *  The collateral seized is transferred to the liquidator.
@@ -869,7 +877,7 @@ contract VAIController is
     ) public view returns (uint256) {
         uint256 storedIndex = vaiMinterInterestIndex[minter];
 
-        console.log("the storedIndex is:",storedIndex);
+        console.log("======合约参数打印, getVAIMinterInterestIndex, vaiMinterInterestIndex:",storedIndex);
         // If the user minted VAI before the stability fee was introduced, accrue
         // starting from stability fee launch
         if (storedIndex == 0) {
@@ -890,6 +898,10 @@ contract VAIController is
         uint amount = ComptrollerImplInterface(address(comptroller)).mintedVAIs(
             account
         );
+
+        console.log("======合约参数打印，getVAIRepayAmount,  mintedVAIs：",amount);
+        console.log("======合约参数打印，getVAIRepayAmount,  vaiMintIndex：",vaiMintIndex);
+        console.log("======合约参数打印，getVAIRepayAmount,  getVAIMinterInterestIndex(account)：",getVAIMinterInterestIndex(account));
 
         (mErr, delta) = mulUInt(vaiMintIndex, 1e18);
         require(
@@ -915,7 +927,7 @@ contract VAIController is
             "VAI_TOTAL_REPAY_AMOUNT_CALCULATION_FAILED"
         );
          
-        console.log("the getVAIRepayAmount amount is: ", amount);
+        console.log("======合约参数打印，getVAIRepayAmount, final amount is:", amount);
 
         return amount;
 
@@ -978,6 +990,8 @@ contract VAIController is
         MathError mErr;
         uint256 totalRepayAmount = getVAIRepayAmount(borrower);
         uint currentInterest;
+        console.log("======合约参数打印，getVAICalculateRepayAmount, repayAmount:",repayAmount);
+        console.log("======合约参数打印，getVAICalculateRepayAmount, totalRepayAmount:",totalRepayAmount);
 
         (mErr, currentInterest) = subUInt(
             totalRepayAmount,
@@ -988,6 +1002,8 @@ contract VAIController is
             "VAI_BURN_AMOUNT_CALCULATION_FAILED"
         );
 
+        console.log("======合约参数打印，getVAICalculateRepayAmount, currentInterest:",currentInterest);
+        console.log("======合约参数打印，getVAICalculateRepayAmount, pastVAIInterest[borrower]:",pastVAIInterest[borrower]);
         (mErr, currentInterest) = addUInt(
             pastVAIInterest[borrower],
             currentInterest
@@ -996,7 +1012,7 @@ contract VAIController is
             mErr == MathError.NO_ERROR,
             "VAI_BURN_AMOUNT_CALCULATION_FAILED"
         );
-
+        console.log("======合约参数打印，getVAICalculateRepayAmount, After add pastVAIInterest, currentInterest：",currentInterest);
         uint burn;
         uint partOfCurrentInterest = currentInterest;
         uint partOfPastInterest = pastVAIInterest[borrower];
@@ -1025,7 +1041,7 @@ contract VAIController is
                 mErr == MathError.NO_ERROR,
                 "VAI_MINTED_AMOUNT_CALCULATION_FAILED"
             );
-
+            console.log("======合约参数打印，getVAICalculateRepayAmount, totalMintedAmount：",totalMintedAmount);
             (mErr, burn) = mulUInt(totalMintedAmount, delta);
             require(
                 mErr == MathError.NO_ERROR,
@@ -1068,6 +1084,9 @@ contract VAIController is
                 "VAI_PAST_INTEREST_CALCULATION_FAILED"
             );
         }
+        console.log("======合约参数打印，getVAICalculateRepayAmount, burn：",burn);
+        console.log("======合约参数打印，getVAICalculateRepayAmount, partOfCurrentInterest：",partOfCurrentInterest);
+        console.log("======合约参数打印，getVAICalculateRepayAmount, partOfPastInterest：",partOfPastInterest);
 
         return (burn, partOfCurrentInterest, partOfPastInterest);
     }
@@ -1090,6 +1109,8 @@ contract VAIController is
 
         vaiMintIndex = delta;
         accrualBlockNumber = getBlockNumber();
+        console.log("======合约参数打印，accrueVAIInterest, vaiMintIndex：",vaiMintIndex);
+        console.log("======合约参数打印，accrueVAIInterest, accrualBlockNumber：",accrualBlockNumber);
     }
 
     /**

@@ -2024,7 +2024,6 @@ describe("Comptroller_1", () => {
 
 
        it("user borrow limit = 80%，APY= 10%，一年后， price down 85300，触发清算", async () => {
-
             console.log("-----------------------------------------------------------");
             await VaiInstance.setBaseRate(big17);  //10% APY
 
@@ -2172,6 +2171,10 @@ describe("Comptroller_1", () => {
 
             console.log("-----------------------------------------------------------");
         });
+
+
+
+
 
     });
 
