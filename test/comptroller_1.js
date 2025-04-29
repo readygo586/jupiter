@@ -18,7 +18,7 @@ describe("Comptroller_1", () => {
     const big16 = BigInt(10) ** BigInt(16);
 
     beforeEach(async function () {
-        [signer, account1, account2] = await ethers.getSigners();
+        [signer, account1, account2,account3] = await ethers.getSigners();
         const {
             comptroller,
             vTokenInstanceUSDT,
@@ -751,75 +751,6 @@ describe("Comptroller_1", () => {
             chai.expect(borrowLimitedUsed).to.be.equal(50);
         });
 
-        it("get info for max withdraw Amount", async () => {
-            let allMarkets = await Comptroller.getAllMarkets();
-            await Comptroller.enterMarkets([await vUSDC.getAddress(), await vUSDT.getAddress(), await vBTC.getAddress()]);
-            let USDCBalance = await USDC.balanceOf(signer.address);
-            console.log("USDCBalance", USDCBalance);
-            await USDC.approve(await vUSDC.getAddress(), ethers.MaxUint256);
-            await vUSDC.mint(BigInt(100) * big18);
-
-            let USDTBalance = await USDT.balanceOf(signer.address);
-            console.log("USDTBalance", USDTBalance);
-            await USDT.approve(await vUSDT.getAddress(), ethers.MaxUint256);
-            await vUSDT.mint(BigInt(100) * big18);
-
-
-            let WBTCBalance = await WBTC.balanceOf(signer.address);
-            console.log("WBTCBalance" , WBTCBalance);
-            await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
-            await vBTC.mint(BigInt(1) *big18);
-
-            let [, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
-            let half = mintableAmount / 2n;
-            await VaiInstance.mintVAI(half);
-
-            let oracle = await ethers.getContractAt("PriceOracle", await Comptroller.oracle());
-
-            let [error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance, withTokenCollateralFactor] = await VaiInstance.getInfoForMaxWithdrawAmount(signer.address, await vUSDC.getAddress());
-            console.log(error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor);
-
-            [error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor] = await VaiInstance.getInfoForMaxWithdrawAmount(signer.address, await vUSDT.getAddress());
-            console.log(error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor);
-
-
-            [error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor] = await VaiInstance.getInfoForMaxWithdrawAmount(signer.address, await vBTC.getAddress());
-            console.log(error, totalCollateralValue, totalBorrowValue, withdrawTokenCollateralValue, withdrawVTokenBalance,withTokenCollateralFactor);
-        });
-
-        it("get max withdraw Amount", async () => {
-
-            await Comptroller.enterMarkets([await vUSDC.getAddress(), await vUSDT.getAddress(), await vBTC.getAddress()]);
-            let USDCBalance = await USDC.balanceOf(signer.address);
-            console.log("USDCBalance", USDCBalance);
-            await USDC.approve(await vUSDC.getAddress(), ethers.MaxUint256);
-            await vUSDC.mint(BigInt(100) * big18);
-
-            let USDTBalance = await USDT.balanceOf(signer.address);
-            console.log("USDTBalance", USDTBalance);
-            await USDT.approve(await vUSDT.getAddress(), ethers.MaxUint256);
-            await vUSDT.mint(BigInt(100) * big18);
-
-
-            let WBTCBalance = await WBTC.balanceOf(signer.address);
-            console.log("WBTCBalance" , WBTCBalance);
-            await WBTC.approve(await vBTC.getAddress(), ethers.MaxUint256);
-            await vBTC.mint(BigInt(1) *big18);
-
-            let [, mintableAmount] = await VaiInstance.getMintableVAI(signer.address);
-            let half = mintableAmount / 2n;
-            await VaiInstance.mintVAI(half);
-
-
-            let blkNumber = await ethers.provider.getBlockNumber();
-            let estimateVAIRepayAmount = await VaiInstance.estimateVAIRepayAmount(signer.address, blkNumber);
-            console.log("estimateVAIRepayAmount", estimateVAIRepayAmount);
-            let [err, withdrawAmount] = await VaiInstance.getMaxWithdrawAmount(signer.address, await vUSDC.getAddress(), blkNumber);
-            console.log("error", err, "vUSDC withdrawAmount", withdrawAmount);
-
-            [err, withdrawAmount] = await VaiInstance.getMaxWithdrawAmount(signer.address, await vBTC.getAddress(), blkNumber);
-            console.log("error", err, "vBTC  withdrawAmount", withdrawAmount);
-        });
     });
 
 
@@ -1881,7 +1812,7 @@ describe("Comptroller_1", () => {
             chai.expect(liquidity1).to.be.equal(6790000000000000000000000n);  // liqidity provided by vUSDC= 8000000000000000000000000n
             chai.expect(shortfall1).to.be.equal(0);
 
-            let mintAmount1 = liquidity1 * BigInt(80)/BigInt(100);
+            let mintAmount1 = liquidity1 * BigInt(80)/BigInt(100); //borrow limit= 80%.
             await VaiInstance.connect(account1).mintVAI(mintAmount1);
             let VAIbalance1 = await VAI.balanceOf(account1.address);
             totalSupply = await VAI.totalSupply();
@@ -2089,7 +2020,7 @@ describe("Comptroller_1", () => {
             console.log("清算后,刷新利息")
             await VaiInstance.accrueVAIInterest(); //update the interest
 
-            //signer‘s asset after liquiation， pay 3395000 VAI, seized 59.4125 BTC
+            //signer‘s asset after liquiation，
             vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
             let exchangeRate = await vBTC.exchangeRateStored();
             VAIBalanceAfter = await VAI.balanceOf(signer.address);
@@ -2156,7 +2087,7 @@ describe("Comptroller_1", () => {
             chai.expect(totalSupply).to.be.equal(mintAmount1 + mintAmount);
             chai.expect(repayAmount1).to.be.equal(mintAmount1);
         });
-        
+
         it("user borrow limit = 88%, No interest，price down 85300，触发清算", async () => {
             //BTC price down to 60000
             let newPrice = 85300
@@ -2179,7 +2110,7 @@ describe("Comptroller_1", () => {
             //signer assets before liquidation
             vUSDCBalanceBefore = await vUSDC.balanceOf(signer.address);
             vBTCBalanceBefore = await vBTC.balanceOf(signer.address);
-            // chai.expect(vBTCBalanceBefore).to.be.equal(0);
+            chai.expect(vBTCBalanceBefore).to.be.equal(0);
             VAIBalanceBefore = await VAI.balanceOf(signer.address);
             // chai.expect(VAIBalanceBefore).to.be.equal(8000000000000000000000000n);
             console.log("清算前，清算者的资产，vUSDC",  vUSDCBalanceBefore)
@@ -2198,7 +2129,7 @@ describe("Comptroller_1", () => {
                 VaiInstance.liquidateVAI(account1.address, liquiditionAmount, vBTC.getAddress())
             ).to.emit(VaiInstance, "LiquidateVAI");
 
-            //signer‘s asset after liquiation， pay 3395000 VAI, seized 59.4125 BTC
+            //signer‘s asset after liquidation，
             vBTCBalanceAfter = await vBTC.balanceOf(signer.address);
             VAIBalanceAfter = await VAI.balanceOf(signer.address);
             let VAIRepayAmount = await VaiInstance.getVAIRepayAmount(signer.address);
