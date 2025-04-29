@@ -10,6 +10,7 @@ import "./VAIControllerStorage.sol";
 import "./VAIUnitroller.sol";
 import "./VAI.sol";
 
+
 interface ComptrollerImplInterface {
     function protocolPaused() external view returns (bool);
 
@@ -324,6 +325,7 @@ contract VAIController is
             uint partOfPastInterest
         ) = getVAICalculateRepayAmount(borrower, repayAmount);
 
+
         VAI(vai).burn(payer, burn);
         bool success = VAI(vai).transferFrom(
             payer,
@@ -363,7 +365,14 @@ contract VAIController is
         }
         emit RepayVAI(payer, borrower, burn);
 
-        return (uint(Error.NO_ERROR), burn);
+        uint256 repaidAmount;
+        (mErr, repaidAmount) = addUInt(burn, partOfCurrentInterest);
+        require(
+            mErr == MathError.NO_ERROR,
+            "VAI_BURN_AMOUNT_CALCULATION_FAILED"
+        );
+       
+        return (uint(Error.NO_ERROR), repaidAmount);
     }
 
     //wrap of liquidateVAI
@@ -1084,6 +1093,167 @@ contract VAIController is
 
        return  delta;
     }
+
+     /**
+     * @notice get information for maxWithdrawAmount calculation vaiMintIndex, vaiMintIndex according the input blkNumber to estimate VAI interest
+     * @param account the account
+     * @param withdrawToken the withdrawToken address
+     * @return (uint, uint, uint, uint, uint) error code, total collateral value,  borrowedToken value, , withdraw token collateral value,withdraw vtoken balance
+     */
+
+    function getInfoForMaxWithdrawAmount(address account, address withdrawToken) public view returns (uint, uint, uint, uint, uint, uint) {
+        PriceOracle oracle = ComptrollerImplInterface(address(comptroller))
+        .oracle();
+        VToken[] memory enteredMarkets = ComptrollerImplInterface(
+            address(comptroller)
+        ).getAssetsIn(account);
+
+        AccountAmountLocalVars memory vars; // Holds all our calculation results
+        AccountAmountLocalVars memory withdrawTokenVars;
+        uint withdrawTokenCollateralFactor; //hold withdrawToken info
+
+        uint i;
+        /**
+         * We use this formula to calculate collateralValueExceptToken
+         * totalSupplyAmount * VAIMintRate - (totalBorrowAmount + mintedVAIOf)
+         */
+        for (i = 0; i < enteredMarkets.length; i++) {
+            (
+            vars.oErr,
+            vars.vTokenBalance,
+            vars.borrowBalance,
+            vars.exchangeRateMantissa
+            ) = enteredMarkets[i].getAccountSnapshot(account);
+            if (vars.oErr != 0) {
+                // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
+                return (uint(Error.SNAPSHOT_ERROR), 0,0,0,0,0);
+            }
+            vars.exchangeRate = Exp({mantissa: vars.exchangeRateMantissa});
+
+            // Get the normalized price of the asset
+            vars.oraclePriceMantissa = oracle.getUnderlyingPrice(
+                address(enteredMarkets[i])
+            );
+            if (vars.oraclePriceMantissa == 0) {
+                return (uint(Error.PRICE_ERROR), 0,0,0,0,0);
+            }
+            vars.oraclePrice = Exp({mantissa: vars.oraclePriceMantissa});
+
+            (vars.mErr, vars.tokensToDenom) = mulExp(
+                vars.exchangeRate,
+                vars.oraclePrice
+            );
+            if (vars.mErr != MathError.NO_ERROR) {
+                return (uint(Error.MATH_ERROR), 0,0,0,0,0);
+            }
+
+            // marketSupply = tokensToDenom * vTokenBalance = vTokenBalance * exchangeRate * price
+            (vars.mErr, vars.marketSupply) = mulScalarTruncate(
+                vars.tokensToDenom,
+                vars.vTokenBalance
+            );
+            if (vars.mErr != MathError.NO_ERROR) {
+                return (uint(Error.MATH_ERROR), 0,0,0,0,0);
+            }
+
+            (, uint collateralFactorMantissa, ) = Comptroller(
+                address(comptroller)
+            ).markets(address(enteredMarkets[i]));
+            (vars.mErr, vars.marketSupply) = mulUInt(
+                vars.marketSupply,
+                collateralFactorMantissa
+            );
+            if (vars.mErr != MathError.NO_ERROR) {
+                return (uint(Error.MATH_ERROR), 0,0,0,0,0);
+            }
+
+            (vars.mErr, vars.marketSupply) = divUInt(vars.marketSupply, 1e18);
+            if (vars.mErr != MathError.NO_ERROR) {
+                return (uint(Error.MATH_ERROR), 0,0,0,0,0);
+            }
+            //accumulated sumSupply, vars.sumSupply = vars.sumSupply + vars.marketSupply
+            (vars.mErr, vars.sumSupply) = addUInt(
+                    vars.sumSupply,
+                    vars.marketSupply
+            );
+            if (vars.mErr != MathError.NO_ERROR) {
+                return (uint(Error.MATH_ERROR), 0,0,0,0,0);
+            }
+
+            //record the vToken's balance and marketSupply
+            if (withdrawToken == address(enteredMarkets[i])) {
+                withdrawTokenVars.vTokenBalance = vars.vTokenBalance;
+                withdrawTokenVars.marketSupply = vars.marketSupply;
+                withdrawTokenCollateralFactor = collateralFactorMantissa;
+            }
+
+            // sumBorrowPlusEffects += oraclePrice * borrowBalance
+            (vars.mErr, vars.sumBorrowPlusEffects) = mulScalarTruncateAddUInt(
+                vars.oraclePrice,
+                vars.borrowBalance,
+                vars.sumBorrowPlusEffects
+            );
+            if (vars.mErr != MathError.NO_ERROR) {
+                return (uint(Error.MATH_ERROR), 0,0,0,0,0);
+            }
+        }
+
+        return (uint(Error.NO_ERROR), vars.sumSupply, vars.sumBorrowPlusEffects,  withdrawTokenVars.marketSupply, withdrawTokenVars.vTokenBalance, withdrawTokenCollateralFactor);
+     }
+
+    /**
+      * @notice get information for maxWithdrawAmount calculation vaiMintIndex, vaiMintIndex according the input blkNumber to estimate VAI interest
+     * @param account the account
+     * @param withdrawToken the withdrawToken address
+     * @param blkNumber the block number
+     * @return (uint, uint, uint, uint, uint) error code, total collateral value,  borrowedToken value, , withdraw token collateral value,withdraw vtoken balance
+     */
+    function getMaxWithdrawAmount(address account, address withdrawToken, uint blkNumber) external view returns (uint,  uint) {
+        (uint oErr, uint totalCollateralValue, uint borrowedTokenValue, uint withdrawTokenCollateralValue, uint withdrawTokenBalance, uint withdrawTokenCollateralFactor) = getInfoForMaxWithdrawAmount(account, withdrawToken);
+        if (oErr != 0) {
+            return (uint(Error.SNAPSHOT_ERROR), 0);
+        }
+        uint estimatedVaiRepayAmount = estimateVAIRepayAmount(account, blkNumber);
+        uint borrowedValue = borrowedTokenValue + estimatedVaiRepayAmount;
+        uint collateralValueExceptWithdrawToken = totalCollateralValue - withdrawTokenCollateralValue;
+        if  (collateralValueExceptWithdrawToken >=  borrowedTokenValue){
+            return (uint(Error.NO_ERROR), withdrawTokenBalance);
+        }else{
+            // remainValue/remainAmount = withdrawTokenCollateralValue/(withdrawVTokenBalance * withdrawTokenCollateralFactor)
+            MathError mErr;
+            uint remainValue = borrowedValue - collateralValueExceptWithdrawToken;
+            uint remainAmount;
+            (mErr, remainAmount) = mulUInt(
+                remainValue,
+                withdrawTokenBalance
+            );
+            if (mErr != MathError.NO_ERROR) {
+                return (uint(Error.MATH_ERROR), 0);
+            }
+
+            (mErr, remainAmount) = mulUInt(
+                remainAmount, withdrawTokenCollateralFactor
+            );
+            if (mErr != MathError.NO_ERROR) {
+                return (uint(Error.MATH_ERROR), 0);
+            }
+
+            (mErr, remainAmount) = divUInt(
+                remainAmount, withdrawTokenCollateralValue
+            );
+            if (mErr!= MathError.NO_ERROR) {
+                return (uint(Error.MATH_ERROR), 0);
+            }
+
+            return (uint(Error.NO_ERROR), withdrawTokenBalance - remainAmount);
+
+        }
+    }
+
+
+
+
+
     /**
      * @notice Set VAI borrow base rate
      * @param newBaseRateMantissa the base rate multiplied by 10**18
