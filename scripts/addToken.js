@@ -1,8 +1,8 @@
-const { testComptroller, addVTokenWithDeploy,addVTokenWithoutDeploy, testVDTT} = require("../utils/add_vtoken_on_dtt_testnet");
+const { testComptroller, addVTokenWithDeploy,addVTokenWithoutDeploy, testDeployedVToken} = require("../utils/add_vtoken_on_dtt_testnet");
 
 
 async function main() {
-    await addVTokenWithoutDeploy();
+    await testDeployedVToken();
 }
 
 

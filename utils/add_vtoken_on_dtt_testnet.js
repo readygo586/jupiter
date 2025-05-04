@@ -8,7 +8,6 @@ const big26 = BigInt(10) ** BigInt(26);
 const big28 = BigInt(10) ** BigInt(28);
 
 const UnitrollerAddress =  "0xF44ed242f05936D26Df0a817D081E99dB6ae0A0A"
-const ComptrollerAddress = "0xbec90Af7e2376806f1a3d508be065B1B51d2DD4D"
 const PriceOracleAddress = "0x88895d3Ce1Eba5C626a853C9c8959aDB4d7d5A89"
 const accessControlAddress = "0xF82447441206A306083Dc6dbfCf0C52d5e4Ee267"
 
@@ -25,6 +24,8 @@ const exchangeRateDecimal = 18 + underlyingTokenDecimals - vTokenDecimals;
 const exchangeRate = BigInt(10) ** BigInt(exchangeRateDecimal);
 const collateralFactor = big17 * 6n;
 const supplyCap = BigInt(10) ** BigInt(28);
+
+let vDTTAddress = "0x16BF6f88D1732844c6322304f9b7C30Ddc4E1552"//result after deploy vDTT
 
 const delay = 500;
 
@@ -50,13 +51,13 @@ async function testComptroller() {
 
 }
 
-
+//0x16BF6f88D1732844c6322304f9b7C30Ddc4E1552
 async function addVTokenWithDeploy() {
     const [signer] = await ethers.getSigners();
     console.log(signer.address)
 
-    const unitroller = await ethers.getContractAt("Unitroller", UnitrollerAddress);
-    const comptroller = await ethers.getContractAt("Comptroller", ComptrollerAddress);
+    // const unitroller = await ethers.getContractAt("Unitroller", UnitrollerAddress);
+    const comptroller = await ethers.getContractAt("Comptroller", UnitrollerAddress);
     const accessControl = await ethers.getContractAt("AccessControlManager", accessControlAddress);
     const oracle = await ethers.getContractAt("Oracle", PriceOracleAddress);
 
@@ -92,6 +93,10 @@ async function addVTokenWithDeploy() {
     await sleep(delay);
     console.log("updateFeeder");
 
+    await comptroller._supportMarket(await vTokenInstance.getAddress(),{ gasLimit: "0x1000000" });
+    await sleep(delay);
+    console.log("_supportMarket");
+
     await comptroller._setCollateralFactor(await vTokenInstance.getAddress(), collateralFactor, { gasLimit: "0x1000000" });
     await sleep(delay);
     console.log("finish collateralFactor");
@@ -103,11 +108,8 @@ async function addVTokenWithDeploy() {
     await comptroller._setActionsPaused([await vTokenInstance.getAddress()], [2], true, { gasLimit: "0x1000000" });
     await sleep(delay);
     console.log("_setActionsPaused");
-
-    await comptroller._supportMarket(await vTokenInstance.getAddress(),{ gasLimit: "0x1000000" });
-    await sleep(delay);
-    console.log("_supportMarket");
 }
+
 
 async function addVTokenWithoutDeploy() {
     const [signer] = await ethers.getSigners();
@@ -118,7 +120,7 @@ async function addVTokenWithoutDeploy() {
     // const accessControl = await ethers.getContractAt("AccessControlManager", accessControlAddress);
      const oracle = await ethers.getContractAt("Oracle", PriceOracleAddress);
 
-    let vDTTAddress = "0x2570B96925BD811940EB3C431715E8439c348991"
+
     let vDTT = await ethers.getContractAt("VBep20Delegator", vDTTAddress);
     let symbol = await vDTT.symbol();
     let name = await vDTT.name();
@@ -157,7 +159,7 @@ async function addVTokenWithoutDeploy() {
 
 
 
-async function testVToken() {
+async function testDeployedVToken() {
     const [signer] = await ethers.getSigners();
     console.log("signer", signer.address)
 
@@ -166,7 +168,6 @@ async function testVToken() {
     // const accessControl = await ethers.getContractAt("AccessControlManager", accessControlAddress);
     const oracle = await ethers.getContractAt("Oracle", PriceOracleAddress);
 
-    let vDTTAddress = "0x2570B96925BD811940EB3C431715E8439c348991"
     let vDTT = await ethers.getContractAt("VBep20Delegator", vDTTAddress);
     let symbol = await vDTT.symbol();
     let name = await vDTT.name();
@@ -177,8 +178,14 @@ async function testVToken() {
     let price = await oracle.getUnderlyingPrice(vDTTAddress);
     console.log("vDTT underlying price", price);
 
-    [, collateralFactorMantissa,] = await comptroller.markets(vDTTAddress);
-    console.log("collateralFactorMantissa", collateralFactorMantissa )
+    [isListed, collateralFactorMantissa, isVenus] = await comptroller.markets(vDTTAddress);
+    console.log("isListed", isListed, "collateralFactorMantissa", collateralFactorMantissa)
+
+    let supplyCap  = await comptroller.supplyCaps(vDTTAddress);
+    console.log("supplyCap", supplyCap);
+
+    let isPaused = await comptroller.actionPaused(vDTTAddress, 2);
+    console.log("isPaused", isPaused);
 
     // comptroller._setCollateralFactor(vDTTAddress, collateralFactor, { gasLimit: "0x1000000" });
     // await comptroller._setCollateralFactor(vDTTAddress, collateralFactor, { gasLimit: "0x1000000" });
@@ -203,4 +210,4 @@ async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-module.exports = {testComptroller, addVTokenWithDeploy,addVTokenWithoutDeploy, testVToken}
+module.exports = {testComptroller, addVTokenWithDeploy,addVTokenWithoutDeploy, testDeployedVToken}
