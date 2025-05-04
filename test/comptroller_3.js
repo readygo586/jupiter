@@ -62,11 +62,17 @@ describe("Comptroller_3", () => {
             const vTokenDelegateInstance = await vTokenDelegate.deploy({ gasLimit: "0x1000000" });
             await vTokenDelegateInstance.waitForDeployment();
 
+            let comptrollerImplementationAddress = await Comptroller.comptrollerImplementation();
+            console.log("implementation address: ", comptrollerImplementationAddress);
+            let unitrollerAddress = await Comptroller.getAddress()
+            console.log("unitroller address: ", unitrollerAddress);
+
+
             //deploy vToken
             const vToken = await ethers.getContractFactory("VBep20Delegator");
             const vTokenInstance = await vToken.deploy(
                 await underlyingToken.getAddress(),
-                await Comptroller.getAddress(),
+                comptrollerImplementationAddress,
                 await interestRateModelInstance.getAddress(),
                 exchangeRate,
                 vTokenName,
@@ -83,6 +89,7 @@ describe("Comptroller_3", () => {
 
             //await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_supportMarket(address)`, signer, { gasLimit: "0x1000000" });
             await Comptroller._supportMarket(await vTokenInstance.getAddress(), { gasLimit: "0x1000000" });
+
 
             //await accessControlInstance.giveCallPermission(await comptroller.getAddress(), `_setCollateralFactor(address,uint256)`, signer, { gasLimit: "0x1000000" });
             let initCollateralFactor = big17 * 6n;
