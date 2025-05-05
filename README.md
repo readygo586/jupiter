@@ -79,3 +79,5 @@ const supplyCap = BigInt(10) ** BigInt(28);
 ```sh
 npx hardhat run --network xxx scripts/addToken.js
 ```
+
+## Tips for debug 
