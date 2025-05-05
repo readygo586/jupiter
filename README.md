@@ -51,3 +51,31 @@ vUSDC deployed to: 0x3Aa5ebB10DC797CAC828524e59A333d0A371443c
 
 
 ## How to add a token in 
+- fill the parametes in utils/add_vtoken_xx.js
+```js
+//parameters from deployed
+const UnitrollerAddress =  "0xF44ed242f05936D26Df0a817D081E99dB6ae0A0A"  //must be unitriller address
+const PriceOracleAddress = "0x88895d3Ce1Eba5C626a853C9c8959aDB4d7d5A89"
+const accessControlAddress = "0xF82447441206A306083Dc6dbfCf0C52d5e4Ee267"
+
+//parameters from underlying token
+const DttAddress = "0xff75f1c2feEca297a5F091CAd08404dBf74EA389"  //dDTT 的地址
+const DttFeeder = "0x919c511bce9565e6a223c5284e02749df980c3d9" // dDTTFeeder 的地址
+const underlyingTokenName = "dDTT";
+const underlyingTokenSymbol = "dDTT";
+const underlyingTokenDecimals = 18;
+
+//parameters for vToken
+const vTokenName = "vDTT";
+const vTokenSymbol = "vDTT";
+const vTokenDecimals = 8;
+const exchangeRateDecimal = 18 + underlyingTokenDecimals - vTokenDecimals;
+const exchangeRate = BigInt(10) ** BigInt(exchangeRateDecimal);
+const collateralFactor = big17 * 6n;
+const supplyCap = BigInt(10) ** BigInt(28);
+
+```
+-run script to add a token
+```sh
+npx hardhat run --network xxx scripts/addToken.js
+```
