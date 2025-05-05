@@ -62,17 +62,12 @@ describe("Comptroller_3", () => {
             const vTokenDelegateInstance = await vTokenDelegate.deploy({ gasLimit: "0x1000000" });
             await vTokenDelegateInstance.waitForDeployment();
 
-            let comptrollerImplementationAddress = await Comptroller.comptrollerImplementation();
-            console.log("implementation address: ", comptrollerImplementationAddress);
-            let unitrollerAddress = await Comptroller.getAddress()
-            console.log("unitroller address: ", unitrollerAddress);
-
 
             //deploy vToken
             const vToken = await ethers.getContractFactory("VBep20Delegator");
             const vTokenInstance = await vToken.deploy(
                 await underlyingToken.getAddress(),
-                comptrollerImplementationAddress,
+                await Comptroller.getAddress(),
                 await interestRateModelInstance.getAddress(),
                 exchangeRate,
                 vTokenName,
