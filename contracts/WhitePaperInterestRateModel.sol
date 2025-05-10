@@ -1,22 +1,22 @@
-// SPDX-License-Identifier: BSD-3-Clause
-pragma solidity ^0.8.10;
+pragma solidity ^0.5.16;
 
 import "./InterestRateModel.sol";
+import "./SafeMath.sol";
 
 /**
-  * @title Compound's WhitePaperInterestRateModel Contract
-  * @author Compound
-  * @notice The parameterized model described in section 2.4 of the original Compound Protocol whitepaper
-  */
+ * @title Venus's WhitePaperInterestRateModel Contract
+ * @author Venus
+ * @notice The parameterized model described in section 2.4 of the original Venus Protocol whitepaper
+ */
 contract WhitePaperInterestRateModel is InterestRateModel {
-    event NewInterestParams(uint baseRatePerBlock, uint multiplierPerBlock);
+    using SafeMath for uint;
 
-    uint256 private constant BASE = 1e18;
+    event NewInterestParams(uint baseRatePerBlock, uint multiplierPerBlock);
 
     /**
      * @notice The approximate number of blocks per year that is assumed by the interest rate model
      */
-    uint public constant blocksPerYear = 2102400;
+    uint public constant blocksPerYear = (60 * 60 * 24 * 365) / 3; // (assuming 3s blocks)
 
     /**
      * @notice The multiplier of utilization rate that gives the slope of the interest rate
@@ -30,12 +30,12 @@ contract WhitePaperInterestRateModel is InterestRateModel {
 
     /**
      * @notice Construct an interest rate model
-     * @param baseRatePerYear The approximate target base APR, as a mantissa (scaled by BASE)
-     * @param multiplierPerYear The rate of increase in interest rate wrt utilization (scaled by BASE)
+     * @param baseRatePerYear The approximate target base APR, as a mantissa (scaled by 1e18)
+     * @param multiplierPerYear The rate of increase in interest rate wrt utilization (scaled by 1e18)
      */
     constructor(uint baseRatePerYear, uint multiplierPerYear) public {
-        baseRatePerBlock = baseRatePerYear / blocksPerYear;
-        multiplierPerBlock = multiplierPerYear / blocksPerYear;
+        baseRatePerBlock = baseRatePerYear.div(blocksPerYear);
+        multiplierPerBlock = multiplierPerYear.div(blocksPerYear);
 
         emit NewInterestParams(baseRatePerBlock, multiplierPerBlock);
     }
@@ -45,15 +45,19 @@ contract WhitePaperInterestRateModel is InterestRateModel {
      * @param cash The amount of cash in the market
      * @param borrows The amount of borrows in the market
      * @param reserves The amount of reserves in the market (currently unused)
-     * @return The utilization rate as a mantissa between [0, BASE]
+     * @return The utilization rate as a mantissa between [0, 1e18]
      */
-    function utilizationRate(uint cash, uint borrows, uint reserves) public pure returns (uint) {
+    function utilizationRate(
+        uint cash,
+        uint borrows,
+        uint reserves
+    ) public pure returns (uint) {
         // Utilization rate is 0 when there are no borrows
         if (borrows == 0) {
             return 0;
         }
 
-        return borrows * BASE / (cash + borrows - reserves);
+        return borrows.mul(1e18).div(cash.add(borrows).sub(reserves));
     }
 
     /**
@@ -61,11 +65,15 @@ contract WhitePaperInterestRateModel is InterestRateModel {
      * @param cash The amount of cash in the market
      * @param borrows The amount of borrows in the market
      * @param reserves The amount of reserves in the market
-     * @return The borrow rate percentage per block as a mantissa (scaled by BASE)
+     * @return The borrow rate percentage per block as a mantissa (scaled by 1e18)
      */
-    function getBorrowRate(uint cash, uint borrows, uint reserves) override public view returns (uint) {
+    function getBorrowRate(
+        uint cash,
+        uint borrows,
+        uint reserves
+    ) public view returns (uint) {
         uint ur = utilizationRate(cash, borrows, reserves);
-        return (ur * multiplierPerBlock / BASE) + baseRatePerBlock;
+        return ur.mul(multiplierPerBlock).div(1e18).add(baseRatePerBlock);
     }
 
     /**
@@ -74,12 +82,18 @@ contract WhitePaperInterestRateModel is InterestRateModel {
      * @param borrows The amount of borrows in the market
      * @param reserves The amount of reserves in the market
      * @param reserveFactorMantissa The current reserve factor for the market
-     * @return The supply rate percentage per block as a mantissa (scaled by BASE)
+     * @return The supply rate percentage per block as a mantissa (scaled by 1e18)
      */
-    function getSupplyRate(uint cash, uint borrows, uint reserves, uint reserveFactorMantissa) override public view returns (uint) {
-        uint oneMinusReserveFactor = BASE - reserveFactorMantissa;
+    function getSupplyRate(
+        uint cash,
+        uint borrows,
+        uint reserves,
+        uint reserveFactorMantissa
+    ) public view returns (uint) {
+        uint oneMinusReserveFactor = uint(1e18).sub(reserveFactorMantissa);
         uint borrowRate = getBorrowRate(cash, borrows, reserves);
-        uint rateToPool = borrowRate * oneMinusReserveFactor / BASE;
-        return utilizationRate(cash, borrows, reserves) * rateToPool / BASE;
+        uint rateToPool = borrowRate.mul(oneMinusReserveFactor).div(1e18);
+        return
+            utilizationRate(cash, borrows, reserves).mul(rateToPool).div(1e18);
     }
 }

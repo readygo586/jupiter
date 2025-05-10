@@ -1,21 +1,17 @@
 pragma solidity ^0.5.16;
 
-import "./ErrorReporter.sol";
-import "./ComptrollerStorage.sol";
-/**
- * @title ComptrollerCore
- * @dev Storage for the comptroller is at this address, while execution is delegated to the `comptrollerImplementation`.
- * VTokens should reference this contract as their comptroller.
- */
-contract Unitroller is UnitrollerAdminStorage, ComptrollerErrorReporter {
+import "../ErrorReporter.sol";
+import "./VAIControllerStorage.sol";
+
+contract VAIUnitroller is VAIUnitrollerAdminStorage, VAIControllerErrorReporter {
 
     /**
-      * @notice Emitted when pendingComptrollerImplementation is changed
+      * @notice Emitted when pendingVAIControllerImplementation is changed
       */
     event NewPendingImplementation(address oldPendingImplementation, address newPendingImplementation);
 
     /**
-      * @notice Emitted when pendingComptrollerImplementation is accepted, which means comptroller implementation is updated
+      * @notice Emitted when pendingVAIControllerImplementation is accepted, which means comptroller implementation is updated
       */
     event NewImplementation(address oldImplementation, address newImplementation);
 
@@ -41,11 +37,11 @@ contract Unitroller is UnitrollerAdminStorage, ComptrollerErrorReporter {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_IMPLEMENTATION_OWNER_CHECK);
         }
 
-        address oldPendingImplementation = pendingComptrollerImplementation;
+        address oldPendingImplementation = pendingVAIControllerImplementation;
 
-        pendingComptrollerImplementation = newPendingImplementation;
+        pendingVAIControllerImplementation = newPendingImplementation;
 
-        emit NewPendingImplementation(oldPendingImplementation, pendingComptrollerImplementation);
+        emit NewPendingImplementation(oldPendingImplementation, pendingVAIControllerImplementation);
 
         return uint(Error.NO_ERROR);
     }
@@ -56,21 +52,21 @@ contract Unitroller is UnitrollerAdminStorage, ComptrollerErrorReporter {
     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
     */
     function _acceptImplementation() public returns (uint) {
-        // Check caller is pendingImplementation and pendingImplementation ≠ address(0)
-        if (msg.sender != pendingComptrollerImplementation || pendingComptrollerImplementation == address(0)) {
+        // Check caller is pendingImplementation
+        if (msg.sender != pendingVAIControllerImplementation) {
             return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_PENDING_IMPLEMENTATION_ADDRESS_CHECK);
         }
 
         // Save current values for inclusion in log
-        address oldImplementation = comptrollerImplementation;
-        address oldPendingImplementation = pendingComptrollerImplementation;
+        address oldImplementation = vaiControllerImplementation;
+        address oldPendingImplementation = pendingVAIControllerImplementation;
 
-        comptrollerImplementation = pendingComptrollerImplementation;
+        vaiControllerImplementation = pendingVAIControllerImplementation;
 
-        pendingComptrollerImplementation = address(0);
+        pendingVAIControllerImplementation = address(0);
 
-        emit NewImplementation(oldImplementation, comptrollerImplementation);
-        emit NewPendingImplementation(oldPendingImplementation, pendingComptrollerImplementation);
+        emit NewImplementation(oldImplementation, vaiControllerImplementation);
+        emit NewPendingImplementation(oldPendingImplementation, pendingVAIControllerImplementation);
 
         return uint(Error.NO_ERROR);
     }
@@ -134,7 +130,7 @@ contract Unitroller is UnitrollerAdminStorage, ComptrollerErrorReporter {
      */
     function () external payable {
         // delegate all other functions to current implementation
-        (bool success, ) = comptrollerImplementation.delegatecall(msg.data);
+        (bool success, ) = vaiControllerImplementation.delegatecall(msg.data);
 
         assembly {
               let free_mem_ptr := mload(0x40)

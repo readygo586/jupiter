@@ -1,38 +1,29 @@
 {
-  "name": "compound-protocol",
-  "version": "0.2.1",
-  "description": "The Compound Money Market",
-  "main": "index.js",
-  "scripts": {
-    "compile": "./script/compile",
-    "console": "if node -v | grep -E \"v(12|13)\" > /dev/null; then flags=\"-n --experimental-repl-await\"; fi; npx $flags saddle console",
-    "coverage": "./script/coverage",
-    "deploy": "./scenario/script/repl -s ./script/scen/deploy.scen",
-    "lint": "./script/lint",
-    "repl": "./scenario/script/repl",
-    "profile": "yarn test tests/gasProfiler.js",
-    "report": "npx run ./script/saddle/gasReport.js",
-    "test": "./script/test",
-    "test:prepare": "NO_RUN=true ./script/test",
-    "checksize": "npx run ./script/saddle/comptrollerSize.js"
-  },
-  "repository": "git@github.com:compound-finance/compound-protocol.git",
-  "author": "Compound Finance",
-  "license": "UNLICENSED",
+  "name": "hardhat-project",
   "devDependencies": {
-    "bignumber.js": "9.0.0",
-    "jest-diff": "^26.4.2",
-    "jest-junit": "^11.1.0",
-    "prettier": "^1.19.0",
-    "solhint": "^3.3.7",
-    "solparse": "^2.2.8"
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.15"
   },
   "dependencies": {
-    "@solidity-parser/parser": "^0.13.2",
-    "eth-saddle": "^0.1.25"
-  },
-  "resolutions": {
-    "scrypt.js": "https://registry.npmjs.org/@compound-finance/ethereumjs-wallet/-/ethereumjs-wallet-0.6.3.tgz",
-    "**/ganache-core": "github:compound-finance/ganache-core.git#jflatow/unbreak-fork"
+    "@defi-wonderland/smock": "^2.4.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@nomicfoundation/hardhat-ignition": "^0.15.7",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.7",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.12",
+    "@nomicfoundation/hardhat-verify": "^2.0.11",
+    "@nomicfoundation/ignition-core": "^0.15.7",
+    "@openzeppelin/contracts": "^5.1.0",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/chai": "^5.0.1",
+    "@types/mocha": "^10.0.9",
+    "chai": "^4.3.7",
+    "ethers": "^6.13.4",
+    "hardhat-gas-reporter": "^2.2.1",
+    "solidity-coverage": "^0.8.13",
+    "ts-node": "^10.9.2",
+    "typechain": "^8.3.2",
+    "typescript": "^5.6.3"
   }
 }
